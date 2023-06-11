@@ -2,10 +2,14 @@ use std::collections::HashMap;
 
 use hecs::World;
 use map::Map;
-use systems::{move_player::move_player_system, render::run_render_system};
+use systems::{
+    move_player::move_player_system,
+    render::{run_map_render_system, run_render_system},
+};
 use tetra::{
     graphics::{self, Color, Rectangle, Texture},
     math::Vec2,
+    time::Timestep,
     Context, ContextBuilder, State, TetraError,
 };
 
@@ -18,7 +22,7 @@ struct Renderable(String, Rectangle);
 
 struct Player;
 
-struct Position(Vec2<f32>);
+struct Position(Vec2<i32>);
 
 struct Game {
     world: World,
@@ -27,7 +31,8 @@ struct Game {
 
 impl State for Game {
     fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
-        graphics::clear(ctx, Color::rgb(0.392, 0.584, 0.929));
+        graphics::clear(ctx, Color::rgb(0., 0., 0.));
+        run_map_render_system(&self.world, ctx, &self.resources);
         run_render_system(&self.world, ctx, &self.resources);
         Ok(())
     }
@@ -44,14 +49,20 @@ impl Game {
             "person".into(),
             Texture::new(ctx, "assets/person.png").unwrap(),
         );
+        resources.insert(
+            "tileset".into(),
+            Texture::new(ctx, "assets/Tileset.png").unwrap(),
+        );
         let mut world = World::new();
+        let map = Map::new(30, 20);
+        world.spawn((map,));
         world.spawn((
-            Position(Vec2::new(1.0, 1.0)),
+            Position(Vec2::new(1, 1)),
             Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
             Player,
         ));
         world.spawn((
-            Position(Vec2::new(1.0, 1.0)),
+            Position(Vec2::new(1, 1)),
             Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
         ));
         world.spawn((Map::new(10, 10),));
@@ -61,6 +72,7 @@ impl Game {
 pub fn main() -> tetra::Result {
     ContextBuilder::new("S", 500, 500)
         .quit_on_escape(true)
+        .timestep(Timestep::Fixed(20.0))
         .build()?
         .run(Game::new)
 }
