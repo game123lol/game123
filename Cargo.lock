@@ -368,6 +368,7 @@ name = "game123"
 version = "0.1.0"
 dependencies = [
  "hecs",
+ "random",
  "tetra",
 ]
 
@@ -915,6 +916,12 @@ checksum = "4424af4bf778aae2051a77b60283332f386554255d722233d09fbfc7e30da2fc"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "random"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61c7093a82705b48f10d4b165c6482dbe9f58cd63a870d85537e857b2badbd88"
 
 [[package]]
 name = "raw-window-handle"

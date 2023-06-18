@@ -1,7 +1,8 @@
-use std::collections::HashMap;
-
-use hecs::World;
+mod map;
+mod systems;
+use hecs::{Entity, World};
 use map::Map;
+use std::collections::HashMap;
 use systems::{
     move_player::move_player_system,
     render::{run_map_render_system, run_render_system},
@@ -13,16 +14,16 @@ use tetra::{
     Context, ContextBuilder, State, TetraError,
 };
 
-mod systems;
-
-mod map;
-
 #[derive(Debug)]
 struct Renderable(String, Rectangle);
 
 struct Player;
 
 struct Position(Vec2<i32>);
+
+struct Item;
+
+struct ContainsBy(Entity);
 
 struct Game {
     world: World,

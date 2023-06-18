@@ -1,3 +1,4 @@
+use random::Source;
 use tetra::graphics::Rectangle;
 
 pub struct Map {
@@ -16,9 +17,15 @@ impl Map {
     pub fn new(width: usize, height: usize) -> Self {
         let mut tiles = Vec::new();
         let mut obstacles = Vec::new();
+        let mut rnd = random::default(42);
         for i in 0..height {
             for j in 0..width {
-                if i == 0 || j == 0 || i == height - 1 || j == width - 1 {
+                if i == 0
+                    || j == 0
+                    || i == height - 1
+                    || j == width - 1
+                    || rnd.read::<u32>() % 10 == 0
+                {
                     let tile = Tile {
                         name: "wall".into(),
                         texture_name: "tileset".into(),
