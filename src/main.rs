@@ -55,10 +55,6 @@ impl Game {
             Texture::new(ctx, "assets/person.png").unwrap(),
         );
         resources.insert(
-            "tileset".into(),
-            Texture::new(ctx, "assets/Tileset.png").unwrap(),
-        );
-        resources.insert(
             "tileset_iso".into(),
             Texture::new(ctx, "assets/iso.png").unwrap(),
         );
