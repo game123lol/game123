@@ -1,11 +1,13 @@
 mod map;
+mod player;
 mod systems;
 use hecs::{Entity, World};
 use map::Map;
+use player::new_player;
 use std::collections::HashMap;
 use systems::{
     move_player::move_player_system,
-    render::{run_map_render_system, run_render_system},
+    render::{run_map_render_system_iso, run_render_system},
 };
 use tetra::{
     graphics::{self, Color, Rectangle, Texture},
@@ -15,25 +17,27 @@ use tetra::{
 };
 
 #[derive(Debug)]
-struct Renderable(String, Rectangle);
+pub struct Renderable(String, Rectangle);
 
-struct Player;
+pub struct Player;
 
-struct Position(Vec2<i32>);
+pub struct Position(Vec2<i32>);
 
-struct Item;
+pub struct Item;
 
-struct ContainsBy(Entity);
+pub struct ContainsBy(Entity);
 
-struct Game {
+pub struct Game {
     world: World,
     resources: HashMap<String, Texture>,
 }
 
+pub struct Sight(Vec<bool>);
+
 impl State for Game {
     fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
         graphics::clear(ctx, Color::rgb(0., 0., 0.));
-        run_map_render_system(&self.world, ctx, &self.resources);
+        run_map_render_system_iso(&self.world, ctx, &self.resources);
         run_render_system(&self.world, ctx, &self.resources);
         Ok(())
     }
@@ -54,14 +58,14 @@ impl Game {
             "tileset".into(),
             Texture::new(ctx, "assets/Tileset.png").unwrap(),
         );
+        resources.insert(
+            "tileset_iso".into(),
+            Texture::new(ctx, "assets/iso.png").unwrap(),
+        );
         let mut world = World::new();
         let map = Map::new(30, 20);
         world.spawn((map,));
-        world.spawn((
-            Position(Vec2::new(1, 1)),
-            Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
-            Player,
-        ));
+        world.spawn(new_player());
         world.spawn((
             Position(Vec2::new(1, 1)),
             Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
@@ -70,6 +74,7 @@ impl Game {
         Ok(Game { world, resources })
     }
 }
+
 pub fn main() -> tetra::Result {
     ContextBuilder::new("S", 500, 500)
         .quit_on_escape(true)
