@@ -9,3 +9,7 @@ edition = "2021"
 hecs = "*"
 random = "0.14.0"
 tetra = "0.8"
+
+[profile.release]
+strip = true
+lto = true

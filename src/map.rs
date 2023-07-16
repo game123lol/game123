@@ -1,16 +1,26 @@
 use random::Source;
 use tetra::graphics::Rectangle;
 
-pub struct Map {
-    pub size: (usize, usize),
-    pub tiles: Vec<Tile>,
-    pub obstacles: Vec<bool>,
-}
-
 pub struct Tile {
     pub name: String,
     pub texture_name: String,
     pub texture_rect: Rectangle,
+}
+
+impl Tile {
+    pub fn new(name: &str, texture_name: &str, x: u8, y: u8) -> Self {
+        Tile {
+            name: name.into(),
+            texture_name: texture_name.into(),
+            texture_rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
+        }
+    }
+}
+
+pub struct Map {
+    pub size: (usize, usize),
+    pub tiles: Vec<Tile>,
+    pub obstacles: Vec<bool>,
 }
 
 impl Map {
@@ -26,19 +36,11 @@ impl Map {
                     || j == width - 1
                     || rnd.read::<u32>() % 10 == 0
                 {
-                    let tile = Tile {
-                        name: "wall".into(),
-                        texture_name: "tileset".into(),
-                        texture_rect: Rectangle::new(0., 0., 16., 16.),
-                    };
+                    let tile = Tile::new("wall", "tileset_iso", 0, 0);
                     tiles.push(tile);
                     obstacles.push(true);
                 } else {
-                    let tile = Tile {
-                        name: "floor".into(),
-                        texture_name: "tileset".into(),
-                        texture_rect: Rectangle::new(64., 16., 16., 16.),
-                    };
+                    let tile = Tile::new("wall", "tileset_iso", 0, 1);
                     tiles.push(tile);
                     obstacles.push(false)
                 }

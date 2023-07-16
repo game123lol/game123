@@ -24,8 +24,9 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
     	defaultPackage = myRustBuild;
     	devShell = pkgs.mkShell {
       	buildInputs = with pkgs; [ 
-          (rustVersion.override { extensions = [ "rust-src" ]; }) 
+          (rustVersion.override { extensions = [ "rust-src" "rust-analyzer" ]; }) 
           alsaLib
+          grafx2
           cmake
           freetype
           rustup
