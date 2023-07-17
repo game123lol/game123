@@ -1,44 +1,45 @@
-use std::{collections::HashMap, f32::consts::PI};
+use std::collections::HashMap;
 
 use hecs::World;
 use tetra::{
     graphics::{DrawParams, Texture},
-    math::{Mat4, Vec2},
-    window, Context,
+    math::Vec2,
+    Context,
 };
 
-use crate::{map::Map, Player, Position, Renderable};
+use crate::{
+    entities::{Item, Mob, Player, Position, Renderable},
+    map::Map,
+};
 
-pub fn run_render_system(world: &World, ctx: &mut Context, resources: &HashMap<String, Texture>) {
-    if let Some((_, (_, Position(cam_pos)))) = world.query::<(&Player, &Position)>().iter().next() {
-        for (e, (Renderable(texture, rect), Position(pos))) in
-            world.query::<(&Renderable, &Position)>().iter()
-        {
-            let (w, h) = window::get_size(ctx);
-            let texture = resources.get(texture).unwrap();
-            let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
-                + Vec2::new(
-                    (7 * (pos.x - pos.y - cam_pos.x + cam_pos.y)) as f32,
-                    (4 * (pos.y + pos.x - cam_pos.y - cam_pos.x)) as f32,
-                );
-            let params = DrawParams::new().position(position);
-            texture.draw_region(ctx, *rect, params)
-        }
-    }
-}
-
-pub fn run_map_render_system_iso(
+pub fn run_render_system(
     world: &World,
     ctx: &mut Context,
     resources: &HashMap<String, Texture>,
+    canvas_size: (i32, i32),
 ) {
-    if let Some((e, (map,))) = world.query::<(&Map,)>().iter().next() {
+    if let Some((_, (map,))) = world.query::<(&Map,)>().iter().next() {
         if let Some((_, (_, Position(cam_pos)))) =
             world.query::<(&Player, &Position)>().iter().next()
         {
             let (mut x, mut y) = (0, 0);
+            let (w, h) = canvas_size;
+            let mut renderable_mobs = world.query::<(&Renderable, &Position, &Mob)>();
+            let mut renderable_mobs = renderable_mobs.iter().map(|(e, (r, p, _))| (e, (r, p)));
+            let mut renderable_items = world.query::<(&Renderable, &Position, &Item)>();
+            let mut renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
+            let mut ren_map: HashMap<(i32, i32), Vec<&Renderable>> = HashMap::new();
+
+            // разгоняем по тайлам всё что нужно рендерить
+            for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
+                if let Some(vec) = ren_map.get_mut(&(pos[0], pos[1])) {
+                    vec.push(renderable);
+                } else {
+                    ren_map.insert((pos[0], pos[1]), vec![renderable]);
+                }
+            }
+
             for tile in &map.tiles {
-                let (w, h) = window::get_size(ctx);
                 let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
                     + Vec2::new(
                         (7 * (x - y - cam_pos.x + cam_pos.y)) as f32,
@@ -48,8 +49,19 @@ pub fn run_map_render_system_iso(
                 resources.get(&tile.texture_name).unwrap().draw_region(
                     ctx,
                     tile.texture_rect,
-                    params,
+                    params.clone(),
                 );
+
+                if let Some(renderables) = ren_map.get(&(x, y)) {
+                    for Renderable(texture_name, texture_rect) in renderables {
+                        resources.get(texture_name).unwrap().draw_region(
+                            ctx,
+                            *texture_rect,
+                            params.clone(),
+                        );
+                    }
+                }
+
                 x += 1;
                 if x >= map.size.0 as i32 {
                     x = 0;
