@@ -5,7 +5,10 @@ use tetra::{
     Context,
 };
 
-use crate::{map::Map, Player, Position};
+use crate::{
+    entities::{Player, Position},
+    map::Map,
+};
 
 pub fn move_player_system(world: &mut World, ctx: &Context) {
     let mut binding = world.query::<(&Player, &mut Position)>();
