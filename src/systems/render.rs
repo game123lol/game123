@@ -9,7 +9,7 @@ use tetra::{
 
 use crate::{
     entities::{Item, Mob, Player, Position, Renderable},
-    map::Map,
+    map::{Map, Sprite},
 };
 
 pub fn run_render_system(
@@ -25,9 +25,9 @@ pub fn run_render_system(
             let (mut x, mut y) = (0, 0);
             let (w, h) = canvas_size;
             let mut renderable_mobs = world.query::<(&Renderable, &Position, &Mob)>();
-            let mut renderable_mobs = renderable_mobs.iter().map(|(e, (r, p, _))| (e, (r, p)));
+            let renderable_mobs = renderable_mobs.iter().map(|(e, (r, p, _))| (e, (r, p)));
             let mut renderable_items = world.query::<(&Renderable, &Position, &Item)>();
-            let mut renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
+            let renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
             let mut ren_map: HashMap<(i32, i32), Vec<&Renderable>> = HashMap::new();
 
             // разгоняем по тайлам всё что нужно рендерить
@@ -46,9 +46,15 @@ pub fn run_render_system(
                         (4 * (y + x - cam_pos.y - cam_pos.x)) as f32,
                     );
                 let params = DrawParams::new().position(position);
-                resources.get(&tile.texture_name).unwrap().draw_region(
+                let is_full = cam_pos.x > x || cam_pos.y > y || tile.partial_sprite.is_none();
+                let sprite = if is_full {
+                    &tile.full_sprite
+                } else {
+                    &tile.partial_sprite.as_ref().unwrap()
+                };
+                resources.get(&sprite.src_name).unwrap().draw_region(
                     ctx,
-                    tile.texture_rect,
+                    sprite.rect,
                     params.clone(),
                 );
 
