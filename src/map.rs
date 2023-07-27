@@ -1,18 +1,37 @@
 use random::Source;
 use tetra::graphics::Rectangle;
 
+#[derive(Clone)]
+pub struct Sprite {
+    pub src_name: String,
+    pub rect: Rectangle,
+}
+
 pub struct Tile {
     pub name: String,
-    pub texture_name: String,
-    pub texture_rect: Rectangle,
+    pub full_sprite: Sprite,
+    pub partial_sprite: Option<Sprite>,
 }
 
 impl Tile {
     pub fn new(name: &str, texture_name: &str, x: u8, y: u8) -> Self {
         Tile {
             name: name.into(),
-            texture_name: texture_name.into(),
-            texture_rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
+            full_sprite: Sprite {
+                src_name: texture_name.into(),
+                rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
+            },
+            partial_sprite: None,
+        }
+    }
+    pub fn with_partial(&self, texture_name: &str, x: u8, y: u8) -> Self {
+        Tile {
+            name: self.name.clone(),
+            full_sprite: self.full_sprite.clone(),
+            partial_sprite: Some(Sprite {
+                src_name: texture_name.into(),
+                rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
+            }),
         }
     }
 }
@@ -36,11 +55,12 @@ impl Map {
                     || j == width - 1
                     || rnd.read::<u32>() % 10 == 0
                 {
-                    let tile = Tile::new("wall", "tileset_iso", 0, 0);
+                    let tile =
+                        Tile::new("wall", "tileset_iso", 0, 0).with_partial("tileset_iso", 1, 0);
                     tiles.push(tile);
                     obstacles.push(true);
                 } else {
-                    let tile = Tile::new("wall", "tileset_iso", 0, 1);
+                    let tile = Tile::new("floor", "tileset_iso", 0, 1);
                     tiles.push(tile);
                     obstacles.push(false)
                 }
