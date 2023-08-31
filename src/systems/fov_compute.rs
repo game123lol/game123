@@ -77,29 +77,34 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
             ] {
                 row_stack.push(Row::new(1, (-1., 1.)));
                 while let Some(row) = row_stack.pop() {
-                    let mut is_prev_obstacle = false;
+                    println!("{:?}", row_stack);
+                    let mut is_prev_obstacle: Option<bool> = None;
                     for (depth, col) in row.tiles() {
-                        let (x, y) = shift_back(transform(&dir, col, depth));
+                        let crds = transform(&dir, col, depth);
+                        let (x, y) = shift_back(crds);
                         let real_crd = map.xy_index_safe(x, y);
-                        let is_obstacle = !(real_crd.is_some() && map.obstacles[real_crd.unwrap()]);
+                        let is_obstacle = real_crd.is_none() || map.obstacles[real_crd.unwrap()];
                         if is_obstacle || is_symmetric(&row, col) {
                             sight_tiles.insert((x, y));
                         }
-                        if !is_prev_obstacle && is_obstacle {
-                            let mut next_row = row.next();
-                            next_row.slope.1 = slope(depth, col);
-                            row_stack.push(next_row);
-                            println!("left");
+                        if let Some(is_prev_obstacle) = is_prev_obstacle {
+                            if !is_prev_obstacle && is_obstacle {
+                                let mut next_row = row.next();
+                                next_row.slope.1 = slope(depth, col);
+                                row_stack.push(next_row);
+                            }
+                            if !is_obstacle && is_prev_obstacle {
+                                let mut next_row = row.next();
+                                next_row.slope.0 = slope(depth, col);
+                                row_stack.push(next_row);
+                            }
                         }
-                        if !is_obstacle && is_prev_obstacle {
-                            let mut next_row = row.next();
-                            next_row.slope.0 = slope(depth, col);
-                            row_stack.push(next_row);
-                            println!("right");
-                        }
-                        is_prev_obstacle = is_obstacle;
+                        is_prev_obstacle = Some(is_obstacle);
                     }
-                    if !is_prev_obstacle {
+                    if is_prev_obstacle.is_some()
+                        && !is_prev_obstacle.unwrap()
+                        && !row.tiles().collect::<Vec<(i32, i32)>>().is_empty()
+                    {
                         row_stack.push(row.next());
                     }
                 }

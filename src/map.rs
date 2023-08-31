@@ -49,11 +49,8 @@ impl Map {
         let mut rnd = random::default(42);
         for i in 0..height {
             for j in 0..width {
-                if i == 0
-                    || j == 0
-                    || i == height - 1
-                    || j == width - 1
-                    || rnd.read::<u32>() % 10 == 0
+                if i == 0 || j == 0 || i == height - 1 || j == width - 1
+                //|| rnd.read::<u32>() % 10 == 0
                 {
                     let tile =
                         Tile::new("wall", "tileset_iso", 0, 0).with_partial("tileset_iso", 1, 0);
@@ -81,7 +78,7 @@ impl Map {
         }
         let x = x as usize;
         let y = y as usize;
-        if x > self.size.0 || y > self.size.1 {
+        if x >= self.size.0 || y >= self.size.1 {
             return None;
         }
         Some(x + y * self.size.0)
