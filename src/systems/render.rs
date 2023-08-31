@@ -105,34 +105,41 @@ pub fn run_render_system_fov(
                     ren_map.insert((pos[0], pos[1]), vec![renderable]);
                 }
             }
+            let mut sight_positions = sight_positions
+                .iter()
+                .map(|&a| a)
+                .collect::<Vec<(i32, i32)>>();
+            sight_positions.sort_by(|&a, &b| a.1.partial_cmp(&b.1).unwrap());
+            sight_positions.sort_by(|&a, &b| a.0.partial_cmp(&b.0).unwrap());
             for pos in sight_positions {
-                let (x, y) = *pos;
-                let idx = map.xy_index(x + cam_pos.x, y + cam_pos.y);
-                let tile = &map.tiles[idx];
-                let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
-                    + Vec2::new((7 * (x - y)) as f32, (4 * (y + x)) as f32);
+                let (x, y) = pos;
+                if let Some(idx) = map.xy_index_safe(x + cam_pos.x, y + cam_pos.y) {
+                    let tile = &map.tiles[idx];
+                    let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
+                        + Vec2::new((7 * (x - y)) as f32, (4 * (y + x)) as f32);
 
-                let params = DrawParams::new().position(position);
-                let is_full = cam_pos.x > x || cam_pos.y > y || tile.partial_sprite.is_none();
-                let sprite = if is_full {
-                    &tile.full_sprite
-                } else {
-                    &tile.partial_sprite.as_ref().unwrap()
-                };
-                resources.get(&sprite.src_name).unwrap().draw_region(
-                    ctx,
-                    sprite.rect,
-                    params.clone(),
-                );
-                if let Some(renderables) = ren_map.get(&(x + cam_pos.x, y + cam_pos.y)) {
-                    for Renderable(texture_name, texture_rect) in renderables {
-                        resources.get(texture_name).unwrap().draw_region(
-                            ctx,
-                            *texture_rect,
-                            params.clone(),
-                        );
+                    let params = DrawParams::new().position(position);
+                    let is_full = x < 0 || 0 > y || tile.partial_sprite.is_none();
+                    let sprite = if is_full {
+                        &tile.full_sprite
+                    } else {
+                        &tile.partial_sprite.as_ref().unwrap()
+                    };
+                    resources.get(&sprite.src_name).unwrap().draw_region(
+                        ctx,
+                        sprite.rect,
+                        params.clone(),
+                    );
+                    if let Some(renderables) = ren_map.get(&(x + cam_pos.x, y + cam_pos.y)) {
+                        for Renderable(texture_name, texture_rect) in renderables {
+                            resources.get(texture_name).unwrap().draw_region(
+                                ctx,
+                                *texture_rect,
+                                params.clone(),
+                            );
+                        }
                     }
-                }
+                };
             }
         }
     }

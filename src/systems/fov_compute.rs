@@ -77,15 +77,15 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
             ] {
                 row_stack.push(Row::new(1, (-1., 1.)));
                 while let Some(row) = row_stack.pop() {
-                    println!("{:?}", row_stack);
+                    let mut row = row;
                     let mut is_prev_obstacle: Option<bool> = None;
-                    for (depth, col) in row.tiles() {
+                    for (depth, col) in row.clone().tiles() {
                         let crds = transform(&dir, col, depth);
                         let (x, y) = shift_back(crds);
                         let real_crd = map.xy_index_safe(x, y);
                         let is_obstacle = real_crd.is_none() || map.obstacles[real_crd.unwrap()];
-                        if is_obstacle || is_symmetric(&row, col) {
-                            sight_tiles.insert((x, y));
+                        if (is_obstacle || is_symmetric(&row, col)) && real_crd.is_some() {
+                            sight_tiles.insert(crds);
                         }
                         if let Some(is_prev_obstacle) = is_prev_obstacle {
                             if !is_prev_obstacle && is_obstacle {
@@ -94,9 +94,7 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
                                 row_stack.push(next_row);
                             }
                             if !is_obstacle && is_prev_obstacle {
-                                let mut next_row = row.next();
-                                next_row.slope.0 = slope(depth, col);
-                                row_stack.push(next_row);
+                                row.slope.0 = slope(depth, col);
                             }
                         }
                         is_prev_obstacle = Some(is_obstacle);
@@ -109,6 +107,14 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
                     }
                 }
             }
+            let mut tiles_cl = sight_tiles
+                .iter()
+                .map(|&a| shift_back(a))
+                .collect::<Vec<(i32, i32)>>();
+            tiles_cl.sort_by(|&a, &b| a.1.partial_cmp(&b.1).unwrap());
+            tiles_cl.sort_by(|&a, &b| a.0.partial_cmp(&b.0).unwrap());
+            println!("{:?}", tiles_cl);
         }
     }
+    println!("asfd");
 }
