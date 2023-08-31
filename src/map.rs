@@ -1,5 +1,5 @@
 use random::Source;
-use tetra::graphics::Rectangle;
+use tetra::{graphics::Rectangle, math::Vec2};
 
 #[derive(Clone)]
 pub struct Sprite {
@@ -74,5 +74,16 @@ impl Map {
     }
     pub fn xy_index(&self, x: i32, y: i32) -> usize {
         (x + y * self.size.0 as i32) as usize
+    }
+    pub fn xy_index_safe(&self, x: i32, y: i32) -> Option<usize> {
+        if x < 0 || y < 0 {
+            return None;
+        }
+        let x = x as usize;
+        let y = y as usize;
+        if x > self.size.0 || y > self.size.1 {
+            return None;
+        }
+        Some(x + y * self.size.0)
     }
 }

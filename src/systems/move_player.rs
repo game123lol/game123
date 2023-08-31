@@ -33,7 +33,6 @@ pub fn move_player_system(world: &mut World, ctx: &Context) {
             _ => {}
         }
         if !map.obstacles[map.xy_index(step.x, step.y)] {
-            println!("x {} y {}", step.x, step.y);
             *pos = step;
         }
     }
