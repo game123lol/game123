@@ -25,6 +25,8 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
     	devShell = pkgs.mkShell {
       	buildInputs = with pkgs; [ 
           (rustVersion.override { extensions = [ "rust-src" "rust-analyzer" ]; }) 
+          gdb
+          lldb
           alsaLib
           grafx2
           cmake

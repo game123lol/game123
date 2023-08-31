@@ -26,9 +26,7 @@ impl<'a> Row {
 
     fn tiles(&self) -> Box<dyn Iterator<Item = (i32, i32)> + '_> {
         let min_col = (self.slope.0 * self.depth as f64 + 0.5).floor() as i32;
-        let max_col = (self.slope.1 * self.depth as f64 - 0.5).floor() as i32;
-        let example: Vec<(i32, i32)> = (min_col..=max_col).map(|col| (self.depth, col)).collect();
-        println!("{} {}", min_col, max_col);
+        let max_col = (self.slope.1 * self.depth as f64).floor() as i32;
         Box::new((min_col..=max_col).map(|col| (self.depth, col)))
     }
     fn next(&self) -> Self {
@@ -77,9 +75,8 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
                 Direction::Down,
                 Direction::Right,
             ] {
-                row_stack.push(Row::new(1, (1., -1.)));
-                while !row_stack.is_empty() {
-                    let row = row_stack.pop().unwrap();
+                row_stack.push(Row::new(1, (-1., 1.)));
+                while let Some(row) = row_stack.pop() {
                     let mut is_prev_obstacle = false;
                     for (depth, col) in row.tiles() {
                         let (x, y) = shift_back(transform(&dir, col, depth));
