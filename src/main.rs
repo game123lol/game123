@@ -8,7 +8,10 @@ use map::Map;
 use player::new_player;
 use std::collections::HashMap;
 use systems::{
-    move_player::move_player_system, pickup::run_pickup_system, render::run_render_system,
+    fov_compute::run_fov_compute_system,
+    move_player::move_player_system,
+    pickup::run_pickup_system,
+    render::{run_render_system, run_render_system_fov},
 };
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color, Rectangle, Texture},
@@ -29,7 +32,7 @@ impl State for Game {
         self.scaler.set_outer_size(w, h);
         graphics::set_canvas(ctx, self.scaler.canvas());
         graphics::clear(ctx, Color::rgb(0., 0., 0.));
-        run_render_system(&self.world, ctx, &self.resources, self.scaler.inner_size());
+        run_render_system_fov(&self.world, ctx, &self.resources, self.scaler.inner_size());
         graphics::reset_canvas(ctx);
         graphics::clear(ctx, Color::rgb(0., 0., 0.));
         self.scaler.draw(ctx);
@@ -38,6 +41,7 @@ impl State for Game {
     fn update(&mut self, ctx: &mut Context) -> Result<(), TetraError> {
         move_player_system(&mut self.world, ctx);
         run_pickup_system(&mut self.world, ctx);
+        run_fov_compute_system(&mut self.world, ctx);
         Ok(())
     }
 }

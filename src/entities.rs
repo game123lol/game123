@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use hecs::Entity;
 use tetra::{graphics::Rectangle, math::Vec2};
 
@@ -14,6 +16,6 @@ pub struct Item;
 
 pub struct ContainsBy(pub Entity);
 
-pub struct Sight(pub Vec<bool>);
+pub struct Sight(pub HashSet<(i32, i32)>);
 
 pub struct Name(pub String);
