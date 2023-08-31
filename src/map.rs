@@ -49,8 +49,11 @@ impl Map {
         let mut rnd = random::default(42);
         for i in 0..height {
             for j in 0..width {
-                if i == 0 || j == 0 || i == height - 1 || j == width - 1
-                //|| rnd.read::<u32>() % 10 == 0
+                if i == 0
+                    || j == 0
+                    || i == height - 1
+                    || j == width - 1
+                    || rnd.read::<u32>() % 10 == 0
                 {
                     let tile =
                         Tile::new("wall", "tileset_iso", 0, 0).with_partial("tileset_iso", 1, 0);
