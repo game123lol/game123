@@ -13,7 +13,7 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
       	cargo = rustVersion;
       	rustc = rustVersion;
     	};
-    	myRustBuild = rustPlatform.buildRustPackage {
+      myRustBuild = rustPlatform.buildRustPackage {
       	pname =
         	"game123"; # make this what ever your cargo.toml package.name is
       	version = "0.1.0";
@@ -30,7 +30,10 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           alsaLib
           pkg-config
         ];
-    	};
+        postInstall = ''
+          cp -r assets $out/assets
+        '';
+      };
   	in {
     	defaultPackage = myRustBuild;
     	devShell = pkgs.mkShell {
