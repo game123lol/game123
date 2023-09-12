@@ -1,5 +1,5 @@
 use random::Source;
-use tetra::{graphics::Rectangle, math::Vec2};
+use tetra::graphics::Rectangle;
 
 #[derive(Clone)]
 pub struct Sprite {

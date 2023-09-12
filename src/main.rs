@@ -8,14 +8,12 @@ use map::Map;
 use player::new_player;
 use std::collections::HashMap;
 use systems::{
-    fov_compute::run_fov_compute_system,
-    move_player::move_player_system,
-    pickup::run_pickup_system,
-    render::{run_render_system, run_render_system_fov},
+    fov_compute::run_fov_compute_system, move_player::move_player_system,
+    render::run_render_system_fov,
 };
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color, Rectangle, Texture},
-    math::{Rect, Vec2},
+    math::Vec2,
     time::Timestep,
     window, Context, ContextBuilder, State, TetraError,
 };
@@ -40,8 +38,7 @@ impl State for Game {
     }
     fn update(&mut self, ctx: &mut Context) -> Result<(), TetraError> {
         move_player_system(&mut self.world, ctx);
-        run_pickup_system(&mut self.world, ctx);
-        run_fov_compute_system(&mut self.world, ctx);
+        run_fov_compute_system(&mut self.world);
         Ok(())
     }
 }

@@ -1,9 +1,8 @@
 use hecs::World;
-use tetra::Context;
 
 use crate::{
     entities::{Player, Position, Sight},
-    map::{Map, Tile},
+    map::Map,
 };
 
 #[derive(Clone, Debug)]
@@ -26,7 +25,7 @@ impl<'a> Row {
 
     fn tiles(&self) -> Box<dyn Iterator<Item = (i32, i32)> + '_> {
         let min_col = (self.slope.0 * self.depth as f64 + 0.5).floor() as i32;
-        let max_col = (self.slope.1 * self.depth as f64).floor() as i32;
+        let max_col = (self.slope.1 * self.depth as f64 + 0.5).floor() as i32;
         Box::new((min_col..=max_col).map(|col| (self.depth, col)))
     }
     fn next(&self) -> Self {
@@ -51,20 +50,17 @@ fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
     }
 }
 
-pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
+pub fn run_fov_compute_system(world: &World) {
     if let Some((_, (map,))) = world.query::<(&Map,)>().iter().next() {
         if let Some((_, (_, Position(cam_pos), Sight(sight_tiles)))) = world
             .query::<(&Player, &Position, &mut Sight)>()
             .iter()
             .next()
         {
-            let (map_h, map_w) = map.size;
-
-            // реальные координаты в относительные
-            let shift = |pos: (i32, i32)| (pos.0 - cam_pos.x, pos.1 - cam_pos.y);
-            // обратно
+            // относительные координаты в реальные
             let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
 
+            sight_tiles.clear();
             sight_tiles.insert((0, 0));
 
             let mut row_stack: Vec<Row> = Vec::new();
@@ -107,14 +103,6 @@ pub fn run_fov_compute_system(world: &World, ctx: &mut Context) {
                     }
                 }
             }
-            let mut tiles_cl = sight_tiles
-                .iter()
-                .map(|&a| shift_back(a))
-                .collect::<Vec<(i32, i32)>>();
-            tiles_cl.sort_by(|&a, &b| a.1.partial_cmp(&b.1).unwrap());
-            tiles_cl.sort_by(|&a, &b| a.0.partial_cmp(&b.0).unwrap());
-            println!("{:?}", tiles_cl);
         }
     }
-    println!("asfd");
 }
