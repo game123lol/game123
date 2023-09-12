@@ -19,6 +19,17 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
       	version = "0.1.0";
       	src = ./.; # the folder with the cargo.toml
       	cargoLock.lockFile = ./Cargo.lock;
+        buildInputs = with pkgs; [
+          SDL2
+          cmake
+          alsaLib
+        ];
+        nativeBuildInputs = with pkgs; [
+          SDL2
+          cmake
+          alsaLib
+          pkg-config
+        ];
     	};
   	in {
     	defaultPackage = myRustBuild;
@@ -31,8 +42,6 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           grafx2
           cmake
           freetype
-          rustup
-          cargo
           expat
           openssl
           pkgconfig
