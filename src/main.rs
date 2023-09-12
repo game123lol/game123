@@ -6,7 +6,7 @@ use entities::{Item, Name, Position, Renderable};
 use hecs::World;
 use map::Map;
 use player::new_player;
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 use systems::{
     fov_compute::run_fov_compute_system, move_player::move_player_system,
     render::run_render_system_fov,
@@ -46,17 +46,18 @@ impl State for Game {
 impl Game {
     fn new(ctx: &mut Context) -> tetra::Result<Game> {
         let mut resources = HashMap::new();
+        let assets_path = env::current_exe().unwrap().parent().unwrap().join("assets");
         resources.insert(
             "person".into(),
-            Texture::new(ctx, "assets/person.png").unwrap(),
+            Texture::new(ctx, assets_path.join("person.png")).unwrap(),
         );
         resources.insert(
             "tileset_iso".into(),
-            Texture::new(ctx, "assets/iso.png").unwrap(),
+            Texture::new(ctx, assets_path.join("iso.png")).unwrap(),
         );
         resources.insert(
             "items".into(),
-            Texture::new(ctx, "assets/items.png").unwrap(),
+            Texture::new(ctx, assets_path.join("items.png")).unwrap(),
         );
         let mut world = World::new();
         let map = Map::new(30, 20);
