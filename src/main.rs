@@ -46,7 +46,13 @@ impl State for Game {
 impl Game {
     fn new(ctx: &mut Context) -> tetra::Result<Game> {
         let mut resources = HashMap::new();
-        let assets_path = env::current_exe().unwrap().parent().unwrap().join("assets");
+        let assets_path = env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("assets");
         resources.insert(
             "person".into(),
             Texture::new(ctx, assets_path.join("person.png")).unwrap(),
