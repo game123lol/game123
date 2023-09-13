@@ -1,5 +1,16 @@
 # Just a small roguelike game
-To run:
+To run on NixOS:
 ```
 nix run github:Nuxssss/game123
+```
+To run on non-NixOS system using nix:
+```
+nix run --override-input nixpkgs nixpkgs/nixos-21.11 --impure github:guibou/nixGL -- \
+  nix run github:Nuxssss/game123
+```
+To build manually:
+```
+git clone github.com/Nuxssss/game123
+cd game123
+cargo run --release
 ```
