@@ -5,7 +5,7 @@ nix run github:Nuxssss/game123
 ```
 To run on non-NixOS system using nix:
 ```
-nix run --override-input nixpkgs nixpkgs/nixos-21.11 --impure github:guibou/nixGL -- \
+nix run --override-input nixpkgs nixpkgs/nixos-23.05 --impure github:guibou/nixGL -- \
   nix run github:Nuxssss/game123
 ```
 To build manually:
