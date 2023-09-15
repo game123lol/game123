@@ -2,6 +2,7 @@ mod entities;
 mod map;
 mod player;
 mod systems;
+mod tests;
 use entities::{Item, Name, Position, Renderable};
 use hecs::World;
 use map::Map;
@@ -45,14 +46,17 @@ impl State for Game {
 
 impl Game {
     fn new(ctx: &mut Context) -> tetra::Result<Game> {
-        let mut resources = HashMap::new();
-        let assets_path = env::current_exe()
+        let mut resources = HashMap::new(); //TODO: Вынести в отдельную функцию
+        let mut assets_path = env::current_exe()
             .unwrap()
             .parent()
             .unwrap()
             .parent()
             .unwrap()
             .join("assets");
+        if !assets_path.exists() {
+            assets_path = env::current_dir().unwrap().join("assets"); //мммм а пахне як
+        }
         resources.insert(
             "person".into(),
             Texture::new(ctx, assets_path.join("person.png")).unwrap(),
@@ -66,12 +70,12 @@ impl Game {
             Texture::new(ctx, assets_path.join("items.png")).unwrap(),
         );
         let mut world = World::new();
-        let map = Map::new(30, 20);
+        let map = Map::new();
         world.spawn((map,));
         world.spawn(new_player());
         world.spawn((
             Position(Vec2::new(1, 1)),
-            Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
+            Renderable("person".into(), Rectangle::new(0., 0., 16., 20.)),
         ));
         world.spawn((
             Item,
@@ -79,13 +83,12 @@ impl Game {
             Renderable("items".into(), Rectangle::new(0., 0., 16., 16.)),
             Position(Vec2::new(2, 2)),
         ));
-        world.spawn((Map::new(10, 10),));
         let scaler = ScreenScaler::new(
             ctx,
-            500,
-            500,
-            500,
-            500,
+            1000,
+            1000,
+            1000,
+            1000,
             graphics::scaling::ScalingMode::CropPixelPerfect,
         )
         .unwrap();

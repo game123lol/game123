@@ -8,7 +8,7 @@ pub fn new_player() -> (Position, Sight, Renderable, Player, Mob) {
     (
         Position(Vec2::new(1, 1)),
         Sight(HashSet::new()),
-        Renderable("person".into(), Rectangle::new(0., 0., 16., 16.)),
+        Renderable("person".into(), Rectangle::new(0., 0., 16., 20.)),
         Player,
         Mob,
     )
