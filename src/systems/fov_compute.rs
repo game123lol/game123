@@ -1,4 +1,5 @@
 use hecs::World;
+use tetra::math::num_integer::Roots;
 
 use crate::{
     entities::{Player, Position, Sight},
@@ -51,7 +52,7 @@ fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
 }
 
 pub fn run_fov_compute_system(world: &World) {
-    if let Some((_, (map,))) = world.query::<(&Map,)>().iter().next() {
+    if let Some((_, (map,))) = world.query::<(&mut Map,)>().iter().next() {
         if let Some((_, (_, Position(cam_pos), Sight(sight_tiles)))) = world
             .query::<(&Player, &Position, &mut Sight)>()
             .iter()
@@ -73,18 +74,24 @@ pub fn run_fov_compute_system(world: &World) {
             ] {
                 row_stack.push(Row::new(1, (-1., 1.)));
                 while let Some(row) = row_stack.pop() {
+                    let sight_radius = 30.0;
                     let mut row = row;
                     let mut is_prev_obstacle: Option<bool> = None;
                     for (depth, col) in row.clone().tiles() {
+                        let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
+                        let in_sight_radius = hypotenuse < sight_radius;
+
                         let crds = transform(&dir, col, depth);
                         let (x, y) = shift_back(crds);
-                        let real_crd = map.xy_index_safe(x, y);
-                        let is_obstacle = real_crd.is_none() || map.obstacles[real_crd.unwrap()];
-                        if (is_obstacle || is_symmetric(&row, col)) && real_crd.is_some() {
+                        let (ch_x, ch_y) = Map::xy_chunk(x, y);
+                        let chunk = map.get_chunk_or_create(ch_x, ch_y);
+                        let real_crd = Map::xy_index_chunk(x, y);
+                        let is_obstacle = chunk.obstacles[real_crd];
+                        if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
                             sight_tiles.insert(crds);
                         }
                         if let Some(is_prev_obstacle) = is_prev_obstacle {
-                            if !is_prev_obstacle && is_obstacle {
+                            if !is_prev_obstacle && is_obstacle && in_sight_radius {
                                 let mut next_row = row.next();
                                 next_row.slope.1 = slope(depth, col);
                                 row_stack.push(next_row);
@@ -97,7 +104,8 @@ pub fn run_fov_compute_system(world: &World) {
                     }
                     if is_prev_obstacle.is_some()
                         && !is_prev_obstacle.unwrap()
-                        && !row.tiles().collect::<Vec<(i32, i32)>>().is_empty()
+                        //&& !row.tiles().collect::<Vec<(i32, i32)>>().is_empty()
+                        && (row.depth as f64) < sight_radius
                     {
                         row_stack.push(row.next());
                     }
