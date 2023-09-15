@@ -1,21 +1,20 @@
 use std::collections::HashMap;
 
 use hecs::World;
-use tetra::{
-    graphics::{DrawParams, Texture},
-    math::Vec2,
-    Context,
-};
+use tetra::{graphics::DrawParams, math::Vec2, Context};
 
 use crate::{
-    entities::{Item, Mob, Player, Position, Renderable, Sight},
+    components::{Item, Mob, Player, Position, Renderable, Sight},
     map::Map,
+    resources::Resources,
 };
+
+//TODO: Сделать ошибки об отсутствии спрайтов более информативными
 
 pub fn run_render_system_fov(
     world: &World,
     ctx: &mut Context,
-    resources: &HashMap<String, Texture>,
+    resources: &Resources,
     canvas_size: (i32, i32),
 ) {
     if let Some((_, (map,))) = world.query::<(&Map,)>().iter().next() {
@@ -63,18 +62,12 @@ pub fn run_render_system_fov(
                 } else {
                     &tile.partial_sprite.as_ref().unwrap()
                 };
-                resources.get(&sprite.src_name).unwrap().draw_region(
-                    ctx,
-                    sprite.rect,
-                    params.clone(),
-                );
+                let sprite = resources.sprites.get(&*sprite).unwrap();
+                sprite.texture.draw_region(ctx, sprite.rect, params.clone());
                 if let Some(renderables) = ren_map.get(&(x + cam_pos.x, y + cam_pos.y)) {
-                    for Renderable(texture_name, texture_rect) in renderables {
-                        resources.get(texture_name).unwrap().draw_region(
-                            ctx,
-                            *texture_rect,
-                            params.clone(),
-                        );
+                    for Renderable(name) in renderables {
+                        let sprite = resources.sprites.get(name).unwrap();
+                        sprite.texture.draw_region(ctx, sprite.rect, params.clone());
                     }
                 }
             }

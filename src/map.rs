@@ -1,40 +1,27 @@
 use std::{collections::HashMap, sync::Arc};
 
 use random::Source;
-use tetra::graphics::Rectangle;
-
-#[derive(Clone, Debug)]
-pub struct Sprite {
-    pub src_name: String,
-    pub rect: Rectangle,
-}
 
 #[derive(Clone, Debug)]
 pub struct Tile {
     pub name: String,
-    pub full_sprite: Sprite,
-    pub partial_sprite: Option<Sprite>,
+    pub full_sprite: String,
+    pub partial_sprite: Option<String>,
 }
 
 impl Tile {
-    pub fn new(name: &str, texture_name: &str, x: u8, y: u8) -> Self {
+    pub fn new(name: &str, sprite_name: &str) -> Self {
         Tile {
             name: name.into(),
-            full_sprite: Sprite {
-                src_name: texture_name.into(),
-                rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
-            },
+            full_sprite: sprite_name.into(),
             partial_sprite: None,
         }
     }
-    pub fn with_partial(&self, texture_name: &str, x: u8, y: u8) -> Self {
+    pub fn with_partial(&self, sprite_name: &str) -> Self {
         Tile {
             name: self.name.clone(),
             full_sprite: self.full_sprite.clone(),
-            partial_sprite: Some(Sprite {
-                src_name: texture_name.into(),
-                rect: Rectangle::new(x as f32 * 16., y as f32 * 20., 16., 20.),
-            }),
+            partial_sprite: Some(sprite_name.into()),
         }
     }
 }
@@ -77,7 +64,6 @@ impl Map {
         if !self.chunks.contains_key(&(x, y)) {
             let chunk = Chunk::new();
             self.chunks.insert((x, y), chunk);
-            println!("chunk {} {} created", x, y);
         }
         self.chunks.get(&(x, y)).unwrap()
     }
@@ -118,8 +104,8 @@ impl Chunk {
         let mut obstacles = Vec::new();
         let mut rnd = random::default(42);
         let wall_tile =
-            Arc::new(Tile::new("wall", "tileset_iso", 0, 0).with_partial("tileset_iso", 1, 0));
-        let floor_tile = Arc::new(Tile::new("floor", "tileset_iso", 0, 1));
+            Arc::new(Tile::new("brick wall", "brick_wall").with_partial("brick_wall_part"));
+        let floor_tile = Arc::new(Tile::new("floor", "floor"));
         for _ in 0..height {
             for _ in 0..width {
                 if rnd.read::<u32>() % 30 == 0 {

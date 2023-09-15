@@ -1,7 +1,7 @@
 use hecs::World;
 
 use crate::{
-    entities::{Player, Position, Sight},
+    components::{Player, Position, Sight},
     map::Map,
 };
 
