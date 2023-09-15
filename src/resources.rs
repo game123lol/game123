@@ -1,20 +1,30 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use tetra::{
     graphics::{Rectangle, Texture},
     Context,
 };
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct ResourcesConfig {
     pub textures: Vec<TextureConfig>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct TextureConfig {
     pub source_file: PathBuf,
     pub sprite_size: (u32, u32),
     pub sprites: Vec<SpriteConfig>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SpriteConfig {
     pub coords: (u8, u8),
     pub name: String,
@@ -32,11 +42,23 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn new(config: &ResourcesConfig, ctx: &mut Context) -> Self {
+    pub fn load(ctx: &mut Context, assets_path: &Path) -> Self {
+        let config_path = assets_path.join("assets.json");
+        let json_config = fs::read_to_string(config_path).expect(&*format!(
+            "File assets.json not found in {} directory",
+            assets_path.display()
+        ));
+        let config: ResourcesConfig =
+            serde_json::from_str(&json_config).expect("assets.json file is corrupted");
+        Self::new(ctx, &config, assets_path)
+    }
+    pub fn new(ctx: &mut Context, config: &ResourcesConfig, assets_path: &Path) -> Self {
         let mut textures = Vec::new();
         let mut sprites = HashMap::new();
         for texture_config in config.textures.iter() {
-            let texture = Arc::new(Texture::new(ctx, texture_config.source_file.clone()).unwrap());
+            let texture = Arc::new(
+                Texture::new(ctx, assets_path.join(texture_config.source_file.clone())).unwrap(),
+            );
             textures.push(texture.clone());
             for sprite_config in texture_config.sprites.iter() {
                 let sprite = Sprite {
