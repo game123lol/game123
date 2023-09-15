@@ -18,7 +18,7 @@ pub fn run_render_system_fov(
     resources: &HashMap<String, Texture>,
     canvas_size: (i32, i32),
 ) {
-    if let Some((_, (map,))) = world.query::<(&mut Map,)>().iter().next() {
+    if let Some((_, (map,))) = world.query::<(&Map,)>().iter().next() {
         if let Some((_, (_, Position(cam_pos), Sight(sight_positions)))) =
             world.query::<(&Player, &Position, &Sight)>().iter().next()
         {
@@ -50,7 +50,7 @@ pub fn run_render_system_fov(
                 let x_real = x + cam_pos.x;
                 let y_real = y + cam_pos.y;
                 let (ch_x, ch_y) = Map::xy_chunk(x_real, y_real);
-                let chunk = map.get_chunk_or_create(ch_x, ch_y);
+                let chunk = map.get_chunk(ch_x, ch_y);
                 let idx = Map::xy_index_chunk(x_real, y_real);
                 let tile = &chunk.tiles[idx];
                 let position = Vec2::new(w as f32 / 2., h as f32 / 2.)

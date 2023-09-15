@@ -1,5 +1,4 @@
 use hecs::World;
-use tetra::math::num_integer::Roots;
 
 use crate::{
     entities::{Player, Position, Sight},
