@@ -6,7 +6,7 @@ use tetra::{
 };
 
 use crate::{
-    entities::{Player, Position},
+    components::{Player, Position},
     map::Map,
 };
 

@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use tetra::{graphics::Rectangle, math::Vec2};
+use tetra::math::Vec2;
 
 #[derive(Debug)]
-pub struct Renderable(pub String, pub Rectangle);
+pub struct Renderable(pub String);
 
 pub struct Player;
 
