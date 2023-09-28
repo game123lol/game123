@@ -47,13 +47,12 @@ impl State for Game {
 
 impl Game {
     fn new(ctx: &mut Context) -> tetra::Result<Game> {
-        let mut assets_path = env::current_exe()
-            .unwrap()
+        let exe_path = env::current_exe().expect("Ты ебанутый? Ты что там делаешь?");
+        let mut assets_path = exe_path
             .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("assets");
+            .and_then(|p| p.parent())
+            .map(|p| p.join("assets"))
+            .unwrap();
         if !assets_path.exists() {
             assets_path = env::current_dir().unwrap().join("assets"); //мммм а пахне як
         }
@@ -63,7 +62,7 @@ impl Game {
         world.spawn((map,));
         world.spawn(new_player());
         world.spawn((
-            Item,
+            Item, //TODO: убрать эту отсебятину и сделать норм генератор предметов
             Name("item".into()),
             Renderable("item".into()),
             Position(Vec2::new(2, 2)),
