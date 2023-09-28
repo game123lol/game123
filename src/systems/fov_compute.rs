@@ -1,4 +1,7 @@
+use std::collections::HashSet;
+
 use hecs::World;
+use tetra::math::Vec2;
 
 use crate::{
     components::{Player, Position, Sight},
@@ -50,66 +53,73 @@ fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
     }
 }
 
-pub fn run_fov_compute_system(world: &World) {
-    if let Some((_, (map,))) = world.query::<(&mut Map,)>().iter().next() {
-        if let Some((_, (_, Position(cam_pos), Sight(sight_tiles)))) = world
-            .query::<(&Player, &Position, &mut Sight)>()
-            .iter()
-            .next()
-        {
-            // относительные координаты в реальные
-            let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
+fn cast(
+    cam_pos: &Vec2<i32>,
+    dir: &Direction,
+    map: &mut Map,
+    sight_tiles: &mut HashSet<(i32, i32)>,
+) {
+    let mut row_stack: Vec<Row> = Vec::new();
+    row_stack.push(Row::new(1, (-1., 1.)));
+    while let Some(row) = row_stack.pop() {
+        let mut row = row;
+        let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
+        let sight_radius = 15.0;
+        let mut is_prev_obstacle: Option<bool> = None;
+        for (depth, col) in row.clone().tiles() {
+            let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
+            let in_sight_radius = hypotenuse < sight_radius;
 
-            sight_tiles.clear();
-            sight_tiles.insert((0, 0));
-
-            let mut row_stack: Vec<Row> = Vec::new();
-
-            for dir in vec![
-                Direction::Up,
-                Direction::Left,
-                Direction::Down,
-                Direction::Right,
-            ] {
-                row_stack.push(Row::new(1, (-1., 1.)));
-                while let Some(row) = row_stack.pop() {
-                    let sight_radius = 30.0;
-                    let mut row = row;
-                    let mut is_prev_obstacle: Option<bool> = None;
-                    for (depth, col) in row.clone().tiles() {
-                        let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
-                        let in_sight_radius = hypotenuse < sight_radius;
-
-                        let crds = transform(&dir, col, depth);
-                        let (x, y) = shift_back(crds);
-                        let (ch_x, ch_y) = Map::xy_chunk(x, y);
-                        let chunk = map.get_chunk_or_create(ch_x, ch_y);
-                        let real_crd = Map::xy_index_chunk(x, y);
-                        let is_obstacle = chunk.obstacles[real_crd];
-                        if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
-                            sight_tiles.insert(crds);
-                        }
-                        if let Some(is_prev_obstacle) = is_prev_obstacle {
-                            if !is_prev_obstacle && is_obstacle && in_sight_radius {
-                                let mut next_row = row.next();
-                                next_row.slope.1 = slope(depth, col);
-                                row_stack.push(next_row);
-                            }
-                            if !is_obstacle && is_prev_obstacle {
-                                row.slope.0 = slope(depth, col);
-                            }
-                        }
-                        is_prev_obstacle = Some(is_obstacle);
-                    }
-                    if is_prev_obstacle.is_some()
-                        && !is_prev_obstacle.unwrap()
-                        //&& !row.tiles().collect::<Vec<(i32, i32)>>().is_empty()
-                        && (row.depth as f64) < sight_radius
-                    {
-                        row_stack.push(row.next());
-                    }
+            let crds = transform(&dir, col, depth);
+            let (x, y) = shift_back(crds);
+            let (ch_x, ch_y) = Map::xy_chunk(x, y);
+            let chunk = map.get_chunk_or_create(ch_x, ch_y);
+            let real_crd = Map::xy_index_chunk(x, y);
+            let is_obstacle = chunk.obstacles[real_crd];
+            if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
+                sight_tiles.insert(crds);
+            }
+            if let Some(is_prev_obstacle) = is_prev_obstacle {
+                if !is_prev_obstacle && is_obstacle && in_sight_radius {
+                    let mut next_row = row.next();
+                    next_row.slope.1 = slope(depth, col);
+                    row_stack.push(next_row);
+                }
+                if !is_obstacle && is_prev_obstacle {
+                    row.slope.0 = slope(depth, col);
                 }
             }
+            is_prev_obstacle = Some(is_obstacle);
         }
+        if is_prev_obstacle.is_some()
+            && !is_prev_obstacle.unwrap()
+            && (row.depth as f64) < sight_radius
+        {
+            row_stack.push(row.next());
+        }
+    }
+}
+
+pub fn run_fov_compute_system(world: &World) {
+    let mut query = world.query::<(&mut Map,)>();
+    let (_, (map,)) = query
+        .iter()
+        .next()
+        .expect("Fov compute system needs entity with Map component");
+    let mut query = world.query::<(&Player, &Position, &mut Sight)>();
+    let (_, (_, Position(cam_pos), Sight(sight_tiles))) = query
+        .iter()
+        .next()
+        .expect("Fov compute system needs entity with Player, Position and Sight components");
+    sight_tiles.clear();
+    sight_tiles.insert((0, 0));
+
+    for dir in vec![
+        Direction::Up,
+        Direction::Left,
+        Direction::Down,
+        Direction::Right,
+    ] {
+        cast(cam_pos, &dir, map, sight_tiles);
     }
 }

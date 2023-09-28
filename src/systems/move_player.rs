@@ -12,9 +12,14 @@ use crate::{
 
 pub fn move_player_system(world: &mut World, ctx: &Context) {
     let mut binding = world.query::<(&Player, &mut Position)>();
-    let (_, (_, Position(pos))) = binding.into_iter().next().unwrap();
+    let (_, (_, Position(pos))) = binding.into_iter().next().expect(
+        "Can't run move_player system without a entity with Player and Position components",
+    );
     let mut binding = world.query::<(&mut Map,)>();
-    let (_, (map,)) = binding.into_iter().next().unwrap();
+    let (_, (map,)) = binding
+        .into_iter()
+        .next()
+        .expect("Can't run move_player system without a entity with Map component");
     for key in get_keys_down(&ctx) {
         let mut step = *pos;
         match key {
