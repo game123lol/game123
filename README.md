@@ -14,3 +14,4 @@ git clone https://github.com/Nuxssss/game123
 cd game123
 cargo run --release
 ```
+To build, the SDL2 library is needed
