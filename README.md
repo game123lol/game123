@@ -10,7 +10,7 @@ nix run --override-input nixpkgs nixpkgs/nixos-23.05 --impure github:guibou/nixG
 ```
 To build manually:
 ```
-git clone github.com/Nuxssss/game123
+git clone https://github.com/Nuxssss/game123
 cd game123
 cargo run --release
 ```
