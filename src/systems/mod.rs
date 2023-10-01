@@ -8,6 +8,13 @@ pub mod fov_compute;
 pub mod move_player;
 pub mod render;
 
+#[macro_export]
+macro_rules! init_systems {
+    [$($system:expr),*] => {
+        vec![$(Box::new($system)),*]
+    };
+}
+
 pub type Result = std::result::Result<(), self::error::Error>;
 
 pub trait GameSystem {
