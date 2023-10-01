@@ -20,12 +20,15 @@ use tetra::{
     window, Context, ContextBuilder, State,
 };
 
+type GameSystems = Vec<Box<dyn GameSystem>>;
+type WorldSystems = Vec<Box<dyn WorldSystem>>;
+
 pub struct Game {
     world: World,
     resources: Resources,
     scaler: ScreenScaler,
-    game_systems: Vec<Box<dyn GameSystem>>,
-    world_systems: Vec<Box<dyn WorldSystem>>,
+    game_systems: GameSystems,
+    world_systems: WorldSystems,
 }
 
 impl State for Game {
@@ -62,9 +65,8 @@ impl Game {
         if !assets_path.exists() {
             assets_path = env::current_dir().unwrap().join("assets"); //мммм а пахне як
         }
-        let game_systems = vec![];
-        let world_systems: Vec<Box<dyn WorldSystem>> =
-            vec![Box::new(MovePlayerSystem), Box::new(FovComputeSystem)];
+        let game_systems: GameSystems = init_systems![];
+        let world_systems: WorldSystems = init_systems![MovePlayerSystem, FovComputeSystem];
         let resources = Resources::load(ctx, &assets_path);
         let mut world = World::new();
         let map = Map::new();
