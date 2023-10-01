@@ -8,6 +8,8 @@ use crate::{
     map::Map,
 };
 
+use super::WorldSystem;
+
 #[derive(Clone, Debug)]
 struct Row {
     depth: i32,
@@ -19,6 +21,35 @@ enum Direction {
     Left,
     Down,
     Right,
+}
+
+pub struct FovComputeSystem;
+
+impl WorldSystem for FovComputeSystem {
+    fn run(&self, world: &World, _ctx: &tetra::Context) -> super::Result {
+        let mut query = world.query::<(&mut Map,)>();
+        let (_, (map,)) = query
+            .iter()
+            .next()
+            .expect("Fov compute system needs entity with Map component");
+        let mut query = world.query::<(&Player, &Position, &mut Sight)>();
+        let (_, (_, Position(cam_pos), Sight(sight_tiles))) = query
+            .iter()
+            .next()
+            .expect("Fov compute system needs entity with Player, Position and Sight components");
+        sight_tiles.clear();
+        sight_tiles.insert((0, 0));
+
+        for dir in vec![
+            Direction::Up,
+            Direction::Left,
+            Direction::Down,
+            Direction::Right,
+        ] {
+            cast(cam_pos, &dir, map, sight_tiles);
+        }
+        Ok(())
+    }
 }
 
 impl<'a> Row {
@@ -97,29 +128,5 @@ fn cast(
         {
             row_stack.push(row.next());
         }
-    }
-}
-
-pub fn run_fov_compute_system(world: &World) {
-    let mut query = world.query::<(&mut Map,)>();
-    let (_, (map,)) = query
-        .iter()
-        .next()
-        .expect("Fov compute system needs entity with Map component");
-    let mut query = world.query::<(&Player, &Position, &mut Sight)>();
-    let (_, (_, Position(cam_pos), Sight(sight_tiles))) = query
-        .iter()
-        .next()
-        .expect("Fov compute system needs entity with Player, Position and Sight components");
-    sight_tiles.clear();
-    sight_tiles.insert((0, 0));
-
-    for dir in vec![
-        Direction::Up,
-        Direction::Left,
-        Direction::Down,
-        Direction::Right,
-    ] {
-        cast(cam_pos, &dir, map, sight_tiles);
     }
 }

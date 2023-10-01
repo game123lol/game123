@@ -11,19 +11,21 @@ use player::new_player;
 use resources::Resources;
 use std::env;
 use systems::{
-    fov_compute::run_fov_compute_system, move_player::move_player_system,
-    render::run_render_system_fov,
+    fov_compute::FovComputeSystem, move_player::MovePlayerSystem, render::RenderSystem, GameSystem,
+    WorldSystem,
 };
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color},
     math::Vec2,
-    window, Context, ContextBuilder, State, TetraError,
+    window, Context, ContextBuilder, State,
 };
 
 pub struct Game {
     world: World,
     resources: Resources,
     scaler: ScreenScaler,
+    game_systems: Vec<Box<dyn GameSystem>>,
+    world_systems: Vec<Box<dyn WorldSystem>>,
 }
 
 impl State for Game {
@@ -32,15 +34,19 @@ impl State for Game {
         self.scaler.set_outer_size(w, h);
         graphics::set_canvas(ctx, self.scaler.canvas());
         graphics::clear(ctx, Color::rgb(0., 0., 0.));
-        run_render_system_fov(&self.world, ctx, &self.resources, self.scaler.inner_size());
+        RenderSystem.run(self, ctx).unwrap();
         graphics::reset_canvas(ctx);
         graphics::clear(ctx, Color::rgb(0., 0., 0.));
         self.scaler.draw(ctx);
         Ok(())
     }
-    fn update(&mut self, ctx: &mut Context) -> Result<(), TetraError> {
-        move_player_system(&mut self.world, ctx);
-        run_fov_compute_system(&mut self.world);
+    fn update(&mut self, ctx: &mut Context) -> tetra::Result {
+        for system in self.game_systems.iter() {
+            system.run(&self, ctx).unwrap()
+        }
+        for system in self.world_systems.iter() {
+            system.run(&self.world, ctx).unwrap()
+        }
         Ok(())
     }
 }
@@ -56,6 +62,9 @@ impl Game {
         if !assets_path.exists() {
             assets_path = env::current_dir().unwrap().join("assets"); //мммм а пахне як
         }
+        let game_systems = vec![];
+        let world_systems: Vec<Box<dyn WorldSystem>> =
+            vec![Box::new(MovePlayerSystem), Box::new(FovComputeSystem)];
         let resources = Resources::load(ctx, &assets_path);
         let mut world = World::new();
         let map = Map::new();
@@ -80,6 +89,8 @@ impl Game {
             world,
             resources,
             scaler,
+            game_systems,
+            world_systems,
         })
     }
 }
