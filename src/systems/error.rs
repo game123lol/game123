@@ -19,10 +19,10 @@ pub struct Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let comps_string = match self.need_components.len() {
-            0 => panic!(""),
-            1 => self.need_components[0].clone(),
+            0 => panic!("Try generate components_need error without components"),
+            1 => format!("{} component", self.need_components[0].clone()),
             2 => format!(
-                "{} and {}",
+                "{} and {} components",
                 self.need_components[0], self.need_components[1]
             ),
             _ => {
@@ -31,7 +31,7 @@ impl Display for Error {
                     str.push_str(&format!(", {}", i))
                 }
                 format!(
-                    "{} and {}",
+                    "{} and {} components",
                     str,
                     self.need_components.last().unwrap().clone()
                 )
