@@ -5,7 +5,8 @@ use tetra::math::Vec2;
 
 use crate::{
     components::{Player, Position, Sight},
-    map::Map,
+    map::{Map, WorldMap},
+    need_components,
 };
 
 use super::WorldSystem;
@@ -27,16 +28,16 @@ pub struct FovComputeSystem;
 
 impl WorldSystem for FovComputeSystem {
     fn run(&self, world: &World, _ctx: &tetra::Context) -> super::Result {
-        let mut query = world.query::<(&mut Map,)>();
+        let mut query = world.query::<(&mut WorldMap,)>();
         let (_, (map,)) = query
             .iter()
             .next()
-            .expect("Fov compute system needs entity with Map component");
+            .ok_or(need_components!(FovSystem, WorldMap))?;
         let mut query = world.query::<(&Player, &Position, &mut Sight)>();
-        let (_, (_, Position(cam_pos), Sight(sight_tiles))) = query
+        let (_, (_, Position(cam_pos), Sight(sight_radius, sight_tiles))) = query
             .iter()
             .next()
-            .expect("Fov compute system needs entity with Player, Position and Sight components");
+            .ok_or(need_components!(FovComputeSystem, Player, Position, Sight))?;
         sight_tiles.clear();
         sight_tiles.insert((0, 0));
 
@@ -46,7 +47,7 @@ impl WorldSystem for FovComputeSystem {
             Direction::Down,
             Direction::Right,
         ] {
-            cast(cam_pos, &dir, map, sight_tiles);
+            cast(cam_pos, &dir, map, sight_tiles, *sight_radius);
         }
         Ok(())
     }
@@ -87,25 +88,25 @@ fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
 fn cast(
     cam_pos: &Vec2<i32>,
     dir: &Direction,
-    map: &mut Map,
+    map: &mut WorldMap,
     sight_tiles: &mut HashSet<(i32, i32)>,
+    sight_radius: u32,
 ) {
     let mut row_stack: Vec<Row> = Vec::new();
     row_stack.push(Row::new(1, (-1., 1.)));
     while let Some(row) = row_stack.pop() {
         let mut row = row;
         let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
-        let sight_radius = 15.0;
         let mut is_prev_obstacle: Option<bool> = None;
         for (depth, col) in row.clone().tiles() {
             let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
-            let in_sight_radius = hypotenuse < sight_radius;
+            let in_sight_radius = hypotenuse < sight_radius as f64;
 
             let crds = transform(&dir, col, depth);
             let (x, y) = shift_back(crds);
-            let (ch_x, ch_y) = Map::xy_chunk(x, y);
+            let (ch_x, ch_y) = WorldMap::xy_chunk(x, y);
             let chunk = map.get_chunk_or_create(ch_x, ch_y);
-            let real_crd = Map::xy_index_chunk(x, y);
+            let real_crd = WorldMap::xy_index_chunk(x, y);
             let is_obstacle = chunk.obstacles[real_crd];
             if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
                 sight_tiles.insert(crds);
@@ -124,7 +125,7 @@ fn cast(
         }
         if is_prev_obstacle.is_some()
             && !is_prev_obstacle.unwrap()
-            && (row.depth as f64) < sight_radius
+            && (row.depth as f64) < sight_radius as f64
         {
             row_stack.push(row.next());
         }

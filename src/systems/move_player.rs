@@ -7,7 +7,7 @@ use tetra::{
 
 use crate::{
     components::{Player, Position},
-    map::Map,
+    map::WorldMap,
     need_components,
 };
 
@@ -23,7 +23,7 @@ impl WorldSystem for MovePlayerSystem {
             Player,
             Position
         ))?;
-        let mut binding = world.query::<(&mut Map,)>();
+        let mut binding = world.query::<(&mut WorldMap,)>();
         let (_, (map,)) = binding
             .into_iter()
             .next()

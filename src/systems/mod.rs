@@ -5,6 +5,7 @@ use crate::Game;
 
 pub mod error;
 pub mod fov_compute;
+pub mod memory;
 pub mod move_player;
 pub mod render;
 
