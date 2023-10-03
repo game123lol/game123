@@ -6,13 +6,13 @@ mod systems;
 mod tests;
 use components::{Item, Name, Position, Renderable};
 use hecs::World;
-use map::Map;
+use map::WorldMap;
 use player::new_player;
 use resources::Resources;
 use std::env;
 use systems::{
-    fov_compute::FovComputeSystem, move_player::MovePlayerSystem, render::RenderSystem, GameSystem,
-    WorldSystem,
+    fov_compute::FovComputeSystem, memory::MemorySystem, move_player::MovePlayerSystem,
+    render::RenderSystem, GameSystem, WorldSystem,
 };
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color},
@@ -66,10 +66,11 @@ impl Game {
             assets_path = env::current_dir().unwrap().join("assets"); //мммм а пахне як
         }
         let game_systems: GameSystems = init_systems![];
-        let world_systems: WorldSystems = init_systems![MovePlayerSystem, FovComputeSystem];
+        let world_systems: WorldSystems =
+            init_systems![MovePlayerSystem, FovComputeSystem, MemorySystem];
         let resources = Resources::load(ctx, &assets_path);
         let mut world = World::new();
-        let map = Map::new();
+        let map = WorldMap::new();
         world.spawn((map,));
         world.spawn(new_player());
         world.spawn((

@@ -35,17 +35,9 @@ pub struct Chunk {
     pub obstacles: [bool; 225],
 }
 
-pub struct Map {
-    chunks: HashMap<(i32, i32), Chunk>,
-}
-
-impl Map {
-    pub fn new() -> Self {
-        Map {
-            chunks: HashMap::new(),
-        }
-    }
-    pub fn xy_chunk(x: i32, y: i32) -> (i32, i32) {
+pub trait Map {
+    type Chunk;
+    fn xy_chunk(x: i32, y: i32) -> (i32, i32) {
         let x_sig = x.signum();
         let y_sig = y.signum();
         let x_abs = if x.abs() < 7 {
@@ -60,17 +52,7 @@ impl Map {
         };
         (x_abs * x_sig, y_abs * y_sig)
     }
-    pub fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Chunk {
-        if !self.chunks.contains_key(&(x, y)) {
-            let chunk = Chunk::new();
-            self.chunks.insert((x, y), chunk);
-        }
-        self.chunks.get(&(x, y)).unwrap()
-    }
-    pub fn get_chunk(&self, x: i32, y: i32) -> &Chunk {
-        self.chunks.get(&(x, y)).unwrap()
-    }
-    pub fn xy_index_chunk(x: i32, y: i32) -> usize {
+    fn xy_index_chunk(x: i32, y: i32) -> usize {
         let mut ch_x = x % 15;
         let mut ch_y = y % 15;
         if ch_x <= -8 {
@@ -88,12 +70,53 @@ impl Map {
         let index = (ch_x + 7) + (ch_y + 7) * 15;
         index as usize
     }
+    fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Self::Chunk;
+    fn get_chunk(&self, x: i32, y: i32) -> Option<&Self::Chunk>;
+    fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut Self::Chunk;
+    fn get_chunk_mut(&mut self, x: i32, y: i32) -> &mut Self::Chunk;
+}
+
+pub struct WorldMap {
+    chunks: HashMap<(i32, i32), Chunk>,
+}
+
+impl WorldMap {
+    pub fn new() -> Self {
+        WorldMap {
+            chunks: HashMap::new(),
+        }
+    }
     pub fn get_obstacle_or_create(&mut self, x: i32, y: i32) -> bool {
         let (ch_x, ch_y) = Self::xy_chunk(x, y);
         let chunk = self.get_chunk_or_create(ch_x, ch_y);
         let idx = Self::xy_index_chunk(x, y);
         chunk.obstacles[idx]
     }
+}
+
+impl Map for WorldMap {
+    fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Chunk {
+        if !self.chunks.contains_key(&(x, y)) {
+            let chunk = Chunk::new();
+            self.chunks.insert((x, y), chunk);
+        }
+        self.chunks.get(&(x, y)).unwrap()
+    }
+    fn get_chunk(&self, x: i32, y: i32) -> Option<&Chunk> {
+        self.chunks.get(&(x, y))
+    }
+    fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut Chunk {
+        if !self.chunks.contains_key(&(x, y)) {
+            let chunk = Chunk::new();
+            self.chunks.insert((x, y), chunk);
+        }
+        self.chunks.get_mut(&(x, y)).unwrap()
+    }
+    fn get_chunk_mut(&mut self, x: i32, y: i32) -> &mut Chunk {
+        self.chunks.get_mut(&(x, y)).unwrap()
+    }
+
+    type Chunk = Chunk;
 }
 
 impl Chunk {
@@ -108,7 +131,7 @@ impl Chunk {
         let floor_tile = Arc::new(Tile::new("floor", "floor"));
         for _ in 0..height {
             for _ in 0..width {
-                if false && rnd.read::<u32>() % 30 == 0 {
+                if rnd.read::<u32>() % 30 == 0 {
                     tiles.push(wall_tile.clone());
                     obstacles.push(true);
                 } else {
