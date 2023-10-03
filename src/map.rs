@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use random::Source;
 
@@ -77,13 +77,13 @@ pub trait Map {
 }
 
 pub struct WorldMap {
-    chunks: HashMap<(i32, i32), Chunk>,
+    chunks: BTreeMap<(i32, i32), Chunk>,
 }
 
 impl WorldMap {
     pub fn new() -> Self {
         WorldMap {
-            chunks: HashMap::new(),
+            chunks: BTreeMap::new(),
         }
     }
     pub fn get_obstacle_or_create(&mut self, x: i32, y: i32) -> bool {

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use tetra::math::Vec2;
 
@@ -15,18 +15,18 @@ pub struct Position(pub Vec2<i32>);
 
 pub struct Item;
 
-pub struct Sight(pub u32, pub HashSet<(i32, i32)>);
+pub struct Sight(pub u32, pub BTreeSet<(i32, i32)>);
 
 pub struct Name(pub String);
 
 pub struct MapMemory {
-    chunks: HashMap<(i32, i32), MemoryChunk>,
+    chunks: BTreeMap<(i32, i32), MemoryChunk>,
 }
 
 impl MapMemory {
     pub fn new() -> Self {
         MapMemory {
-            chunks: HashMap::new(),
+            chunks: BTreeMap::new(),
         }
     }
 }

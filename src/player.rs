@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use tetra::math::Vec2;
 
@@ -7,7 +7,7 @@ use crate::components::{MapMemory, Mob, Player, Position, Renderable, Sight};
 pub fn new_player() -> (Position, Sight, Renderable, Player, Mob, MapMemory) {
     (
         Position(Vec2::new(1, 1)),
-        Sight(30, HashSet::new()),
+        Sight(30, BTreeSet::new()),
         Renderable("person".into()),
         Player,
         Mob,
