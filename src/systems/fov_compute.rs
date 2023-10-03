@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use hecs::World;
 use tetra::math::Vec2;
@@ -89,7 +89,7 @@ fn cast(
     cam_pos: &Vec2<i32>,
     dir: &Direction,
     map: &mut WorldMap,
-    sight_tiles: &mut HashSet<(i32, i32)>,
+    sight_tiles: &mut BTreeSet<(i32, i32)>,
     sight_radius: u32,
 ) {
     let mut row_stack: Vec<Row> = Vec::new();

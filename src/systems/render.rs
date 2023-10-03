@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use tetra::{
     graphics::{Color, DrawParams},
@@ -45,7 +45,7 @@ impl GameSystem for RenderSystem {
         let renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
 
         //координаты предметов которые надо рендерить
-        let mut ren_map: HashMap<(i32, i32), Vec<&Renderable>> = HashMap::new();
+        let mut ren_map: BTreeMap<(i32, i32), Vec<&Renderable>> = BTreeMap::new();
 
         // разгоняем по тайлам всё что нужно рендерить
         for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
