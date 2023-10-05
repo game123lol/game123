@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use tetra::math::Vec2;
 
@@ -45,24 +45,16 @@ impl MemoryChunk {
 
 impl Map for MapMemory {
     fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &MemoryChunk {
-        if !self.chunks.contains_key(&(x, y)) {
-            let chunk = MemoryChunk::new();
-            self.chunks.insert((x, y), chunk);
-        }
-        self.chunks.get(&(x, y)).unwrap()
+        self.chunks.entry((x, y)).or_insert_with(MemoryChunk::new)
     }
     fn get_chunk(&self, x: i32, y: i32) -> Option<&MemoryChunk> {
         self.chunks.get(&(x, y))
     }
     fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut MemoryChunk {
-        if !self.chunks.contains_key(&(x, y)) {
-            let chunk = MemoryChunk::new();
-            self.chunks.insert((x, y), chunk);
-        }
-        self.chunks.get_mut(&(x, y)).unwrap()
+        self.chunks.entry((x, y)).or_insert_with(MemoryChunk::new)
     }
-    fn get_chunk_mut(&mut self, x: i32, y: i32) -> &mut MemoryChunk {
-        self.chunks.get_mut(&(x, y)).unwrap()
+    fn get_chunk_mut(&mut self, x: i32, y: i32) -> Option<&mut MemoryChunk> {
+        self.chunks.get_mut(&(x, y))
     }
 
     type Chunk = MemoryChunk;

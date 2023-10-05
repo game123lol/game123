@@ -23,8 +23,10 @@ use tetra::{
 type GameSystems = Vec<Box<dyn GameSystem>>;
 type WorldSystems = Vec<Box<dyn WorldSystem>>;
 
+type Type = World;
+
 pub struct Game {
-    world: World,
+    world: Type,
     resources: Resources,
     scaler: ScreenScaler,
     game_systems: GameSystems,
@@ -45,7 +47,7 @@ impl State for Game {
     }
     fn update(&mut self, ctx: &mut Context) -> tetra::Result {
         for system in self.game_systems.iter() {
-            system.run(&self, ctx).unwrap()
+            system.run(self, ctx).unwrap()
         }
         for system in self.world_systems.iter() {
             system.run(&self.world, ctx).unwrap()

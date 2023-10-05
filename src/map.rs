@@ -73,7 +73,7 @@ pub trait Map {
     fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Self::Chunk;
     fn get_chunk(&self, x: i32, y: i32) -> Option<&Self::Chunk>;
     fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut Self::Chunk;
-    fn get_chunk_mut(&mut self, x: i32, y: i32) -> &mut Self::Chunk;
+    fn get_chunk_mut(&mut self, x: i32, y: i32) -> Option<&mut Self::Chunk>;
 }
 
 pub struct WorldMap {
@@ -96,24 +96,16 @@ impl WorldMap {
 
 impl Map for WorldMap {
     fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Chunk {
-        if !self.chunks.contains_key(&(x, y)) {
-            let chunk = Chunk::new();
-            self.chunks.insert((x, y), chunk);
-        }
-        self.chunks.get(&(x, y)).unwrap()
+        self.chunks.entry((x, y)).or_insert_with(Chunk::new)
     }
     fn get_chunk(&self, x: i32, y: i32) -> Option<&Chunk> {
         self.chunks.get(&(x, y))
     }
     fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut Chunk {
-        if !self.chunks.contains_key(&(x, y)) {
-            let chunk = Chunk::new();
-            self.chunks.insert((x, y), chunk);
-        }
-        self.chunks.get_mut(&(x, y)).unwrap()
+        self.chunks.entry((x, y)).or_insert_with(Chunk::new)
     }
-    fn get_chunk_mut(&mut self, x: i32, y: i32) -> &mut Chunk {
-        self.chunks.get_mut(&(x, y)).unwrap()
+    fn get_chunk_mut(&mut self, x: i32, y: i32) -> Option<&mut Chunk> {
+        self.chunks.get_mut(&(x, y))
     }
 
     type Chunk = Chunk;

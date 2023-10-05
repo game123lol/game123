@@ -1,7 +1,4 @@
-#![cfg(test)]
-
 use crate::need_components;
-
 #[test]
 fn macro_err_correct() {
     let err = need_components!(TestSystem, TestComponent);

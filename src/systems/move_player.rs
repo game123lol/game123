@@ -28,7 +28,7 @@ impl WorldSystem for MovePlayerSystem {
             .into_iter()
             .next()
             .ok_or(need_components!(MovePlayerSystem, Map))?;
-        for key in get_keys_down(&ctx) {
+        for key in get_keys_down(ctx) {
             let mut step = *pos;
             match key {
                 Key::W => {

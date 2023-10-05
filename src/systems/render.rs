@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use tetra::{
     graphics::{Color, DrawParams},
@@ -78,9 +78,9 @@ impl GameSystem for RenderSystem {
                 let sprite = if is_full {
                     &tile.full_sprite
                 } else {
-                    &tile.partial_sprite.as_ref().unwrap()
+                    tile.partial_sprite.as_ref().unwrap()
                 };
-                let sprite = resources.sprites.get(&*sprite).unwrap();
+                let sprite = resources.sprites.get(sprite).unwrap();
                 let in_sight_radius =
                     ((pos_x * pos_x + pos_y * pos_y) as f64).sqrt() < *sight_radius as f64;
                 let in_render_radius =
