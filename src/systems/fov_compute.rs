@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use hecs::World;
 use tetra::math::Vec2;
@@ -53,7 +53,7 @@ impl WorldSystem for FovComputeSystem {
     }
 }
 
-impl<'a> Row {
+impl Row {
     fn new(depth: i32, slope: (f64, f64)) -> Self {
         Row { depth, slope }
     }
@@ -102,7 +102,7 @@ fn cast(
             let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
             let in_sight_radius = hypotenuse < sight_radius as f64;
 
-            let crds = transform(&dir, col, depth);
+            let crds = transform(dir, col, depth);
             let (x, y) = shift_back(crds);
             let (ch_x, ch_y) = WorldMap::xy_chunk(x, y);
             let chunk = map.get_chunk_or_create(ch_x, ch_y);

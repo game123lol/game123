@@ -3,7 +3,7 @@ use std::fmt::Display;
 #[macro_export]
 macro_rules! need_components {
     ($system:ty, $($component:ty),*) => {
-        crate::systems::error::Error {
+        $crate::systems::error::Error {
             need_components: vec![$(stringify!($component).into()),*],
             system_name: stringify!($system).into()
         }
