@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -37,7 +37,7 @@ pub struct Sprite {
 }
 
 pub struct Resources {
-    pub sprites: HashMap<String, Sprite>,
+    pub sprites: BTreeMap<String, Sprite>,
     pub textures: Vec<Arc<Texture>>,
 }
 
@@ -56,7 +56,7 @@ impl Resources {
     }
     pub fn new(ctx: &mut Context, config: &ResourcesConfig, assets_path: &Path) -> Self {
         let mut textures = Vec::new();
-        let mut sprites = HashMap::new();
+        let mut sprites = BTreeMap::new();
         for texture_config in config.textures.iter() {
             let texture = Arc::new(
                 Texture::new(ctx, assets_path.join(texture_config.source_file.clone())).unwrap(),

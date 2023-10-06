@@ -100,7 +100,7 @@ fn cast(
         let mut is_prev_obstacle: Option<bool> = None;
         for (depth, col) in row.clone().tiles() {
             let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
-            let in_sight_radius = hypotenuse < sight_radius as f64;
+            let in_sight_radius = hypotenuse <= sight_radius as f64;
 
             let crds = transform(dir, col, depth);
             let (x, y) = shift_back(crds);
@@ -112,10 +112,12 @@ fn cast(
                 sight_tiles.insert(crds);
             }
             if let Some(is_prev_obstacle) = is_prev_obstacle {
-                if !is_prev_obstacle && is_obstacle && in_sight_radius {
+                if !is_prev_obstacle && is_obstacle {
                     let mut next_row = row.next();
                     next_row.slope.1 = slope(depth, col);
-                    row_stack.push(next_row);
+                    if row.depth < sight_radius as i32 {
+                        row_stack.push(next_row);
+                    }
                 }
                 if !is_obstacle && is_prev_obstacle {
                     row.slope.0 = slope(depth, col);

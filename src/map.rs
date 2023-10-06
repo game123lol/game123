@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc, time::UNIX_EPOCH};
 
 use random::Source;
 
@@ -38,38 +38,18 @@ pub struct Chunk {
 pub trait Map {
     type Chunk;
     fn xy_chunk(x: i32, y: i32) -> (i32, i32) {
-        let x_sig = x.signum();
-        let y_sig = y.signum();
-        let x_abs = if x.abs() < 7 {
-            0
-        } else {
-            (x.abs() - 7) / 15 + 1
-        };
-        let y_abs = if y.abs() < 7 {
-            0
-        } else {
-            (y.abs() - 7) / 15 + 1
-        };
-        (x_abs * x_sig, y_abs * y_sig)
+        (
+            (x.abs() + 7) * x.signum() / 15,
+            (y.abs() + 7) * y.signum() / 15,
+        )
     }
     fn xy_index_chunk(x: i32, y: i32) -> usize {
-        let mut ch_x = x % 15;
-        let mut ch_y = y % 15;
-        if ch_x <= -8 {
-            ch_x += 15;
-        }
-        if ch_x >= 8 {
-            ch_x -= 15;
-        }
-        if ch_y <= -8 {
-            ch_y += 15;
-        }
-        if ch_y >= 8 {
-            ch_y -= 15;
-        }
-        let index = (ch_x + 7) + (ch_y + 7) * 15;
+        let ch_x = x.rem_euclid(15);
+        let ch_y = y.rem_euclid(15);
+        let index = (ch_x + 7) % 15 + (ch_y + 7) % 15 * 15;
         index as usize
     }
+
     fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Self::Chunk;
     fn get_chunk(&self, x: i32, y: i32) -> Option<&Self::Chunk>;
     fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut Self::Chunk;
@@ -117,13 +97,19 @@ impl Chunk {
         let width = 15;
         let mut tiles = Vec::new();
         let mut obstacles = Vec::new();
-        let mut rnd = random::default(42);
+        let mut rnd = random::default(
+            (std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                % u64::max_value() as u128) as u64,
+        );
         let wall_tile =
             Arc::new(Tile::new("brick wall", "brick_wall").with_partial("brick_wall_part"));
         let floor_tile = Arc::new(Tile::new("floor", "floor"));
         for _ in 0..height {
             for _ in 0..width {
-                if rnd.read::<u32>() % 30 == 0 {
+                if rnd.read::<u32>() % 3000 == 0 {
                     tiles.push(wall_tile.clone());
                     obstacles.push(true);
                 } else {
