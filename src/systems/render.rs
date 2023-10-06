@@ -55,7 +55,7 @@ impl GameSystem for RenderSystem {
                 ren_map.insert((pos[0], pos[1]), vec![renderable]);
             }
         }
-        let render_radius = sight_radius + 15;
+        let render_radius = sight_radius + 30;
         for pos_y in -(render_radius as i32)..render_radius as i32 {
             'x_row: for pos_x in -(render_radius as i32)..render_radius as i32 {
                 let (x, y) = (pos_x, pos_y);
@@ -81,12 +81,10 @@ impl GameSystem for RenderSystem {
                     tile.partial_sprite.as_ref().unwrap()
                 };
                 let sprite = resources.sprites.get(sprite).unwrap();
-                let in_sight_radius =
-                    ((pos_x * pos_x + pos_y * pos_y) as f64).sqrt() < *sight_radius as f64;
                 let in_render_radius =
                     ((pos_x * pos_x + pos_y * pos_y) as f64).sqrt() < render_radius as f64;
                 let is_visible = sight_positions.contains(&(pos_x, pos_y));
-                if in_sight_radius && is_visible {
+                if is_visible {
                     sprite.texture.draw_region(ctx, sprite.rect, params.clone());
                 } else if in_render_radius
                     && memory_chunk.is_some()
