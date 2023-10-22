@@ -141,7 +141,7 @@ pub fn main() -> anyhow::Result<()> {
         .resizable(true)
         .show_mouse(true)
         .grab_mouse(false)
-        .timestep(tetra::time::Timestep::Fixed(20.))
+        //.timestep(tetra::time::Timestep::Fixed(20.))
         .build()?
         .run(|ctx| Ok(StateWrapper::new(Game::new(ctx)?)))
 }
