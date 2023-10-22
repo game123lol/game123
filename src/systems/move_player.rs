@@ -7,7 +7,7 @@ use tetra::{
 
 use crate::{
     components::{Player, Position},
-    map::{Map, WorldMap},
+    map::WorldMap,
     need_components,
 };
 
@@ -28,7 +28,6 @@ impl WorldSystem for MovePlayerSystem {
             .into_iter()
             .next()
             .ok_or(need_components!(MovePlayerSystem, Map))?;
-        dbg!(&pos, WorldMap::xy_chunk(pos[0], pos[1]));
         for key in get_keys_down(ctx) {
             let mut step = *pos;
             match key {

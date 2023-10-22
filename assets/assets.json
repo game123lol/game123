@@ -33,32 +33,32 @@
       ]
     },
     {
-      "source_file": "iso.png",
+      "source_file": "iso_new.png",
       "sprite_size": [
-        16,
-        20
+        30,
+        40
       ],
       "sprites": [
         {
           "coords": [
-            0,
+            0, 
             0
           ],
-          "name": "brick_wall"
+          "name": "vomit_lol"
         },
         {
           "coords": [
             1,
             0
           ],
-          "name": "brick_wall_part"
+          "name": "grass"
         },
         {
           "coords": [
             0,
             1
           ],
-          "name": "floor"
+          "name": "cobblestone"
         }
       ]
     }

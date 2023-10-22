@@ -4,9 +4,9 @@ use random::Source;
 
 #[derive(Clone, Debug)]
 pub struct Tile {
-    pub name: String,
-    pub full_sprite: String,
-    pub partial_sprite: Option<String>,
+    pub name: Arc<str>,
+    pub full_sprite: Arc<str>,
+    pub fallback_sprite: Option<Arc<str>>,
 }
 
 impl Tile {
@@ -14,14 +14,14 @@ impl Tile {
         Tile {
             name: name.into(),
             full_sprite: sprite_name.into(),
-            partial_sprite: None,
+            fallback_sprite: None,
         }
     }
-    pub fn with_partial(&self, sprite_name: &str) -> Self {
+    pub fn with_fallback(&self, sprite_name: &str) -> Self {
         Tile {
             name: self.name.clone(),
             full_sprite: self.full_sprite.clone(),
-            partial_sprite: Some(sprite_name.into()),
+            fallback_sprite: Some(sprite_name.into()),
         }
     }
 }
@@ -104,9 +104,8 @@ impl Chunk {
                 .as_micros()
                 % u64::max_value() as u128) as u64,
         );
-        let wall_tile =
-            Arc::new(Tile::new("brick wall", "brick_wall").with_partial("brick_wall_part"));
-        let floor_tile = Arc::new(Tile::new("floor", "floor"));
+        let wall_tile = Arc::new(Tile::new("cobblestone", "cobblestone").with_fallback("grass"));
+        let floor_tile = Arc::new(Tile::new("grass", "grass"));
         for _ in 0..height {
             for _ in 0..width {
                 if rnd.read::<u32>() % 3000 == 0 {

@@ -37,7 +37,7 @@ pub struct Sprite {
 }
 
 pub struct Resources {
-    pub sprites: BTreeMap<String, Sprite>,
+    pub sprites: BTreeMap<Arc<str>, Sprite>,
     pub textures: Vec<Arc<Texture>>,
 }
 
@@ -72,7 +72,7 @@ impl Resources {
                     ),
                     texture: texture.clone(),
                 };
-                sprites.insert(sprite_config.name.clone(), sprite);
+                sprites.insert(sprite_config.name.to_owned().into(), sprite);
             }
         }
         Resources { sprites, textures }
