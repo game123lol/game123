@@ -11,6 +11,9 @@ random = "0.14.0"
 tetra = "0.8"
 serde = { version = "1.0.107", features = ["derive"] }
 serde_json = "1.0.107"
+egui-tetra = { git = "https://github.com/Nuxssss/egui-tetra", rev = "931ed05" }
+anyhow = "*"
+libc = "0.2.149"
 
 [profile.release]
 strip = true

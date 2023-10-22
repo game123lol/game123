@@ -18,6 +18,13 @@ use super::GameSystem;
 
 pub struct RenderSystem;
 
+fn sprite_not_found<T>(name: &str) -> T {
+    panic!(
+        "Ты какой-то неправильный спрайт ({}) дёргаешь переписывай",
+        name
+    );
+}
+
 impl GameSystem for RenderSystem {
     fn run(&self, game: &crate::Game, ctx: &mut Context) -> super::Result {
         let world = &game.world;
@@ -49,70 +56,95 @@ impl GameSystem for RenderSystem {
 
         // разгоняем по тайлам всё что нужно рендерить
         for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
-            if let Some(vec) = ren_map.get_mut(&(pos[0], pos[1])) {
-                vec.push(renderable);
-            } else {
-                ren_map.insert((pos[0], pos[1]), vec![renderable]);
-            }
+            ren_map
+                .entry((pos[0], pos[1]))
+                .and_modify(|e| e.push(renderable))
+                .or_insert(vec![renderable]);
         }
         let render_radius = sight_radius + 30;
-        for pos_y in -(render_radius as i32)..render_radius as i32 {
-            'x_row: for pos_x in -(render_radius as i32)..render_radius as i32 {
-                let (x, y) = (pos_x, pos_y);
-                let x_real = x + cam_pos.x;
-                let y_real = y + cam_pos.y;
-                let (ch_x, ch_y) = WorldMap::xy_chunk(x_real, y_real);
-                let chunk = map.get_chunk(ch_x, ch_y);
-                if chunk.is_none() {
-                    continue 'x_row;
-                }
-                let chunk = chunk.unwrap();
-                let memory_chunk = map_memory.get_chunk(ch_x, ch_y);
-                let idx = WorldMap::xy_index_chunk(x_real, y_real);
-                let tile = &chunk.tiles[idx];
-                let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
-                    + Vec2::new((7 * (x - y)) as f32, (4 * (y + x)) as f32);
 
-                let params = DrawParams::new().position(position);
-                let is_full = x <= 0 && 0 >= y || tile.partial_sprite.is_none();
-                let sprite = if is_full {
-                    &tile.full_sprite
-                } else {
-                    tile.partial_sprite.as_ref().unwrap()
-                };
-                let sprite = resources.sprites.get(sprite).unwrap();
-                let in_render_radius =
-                    ((pos_x * pos_x + pos_y * pos_y) as f64).sqrt() < render_radius as f64;
-                let is_visible = sight_positions.contains(&(pos_x, pos_y));
-                if is_visible {
-                    sprite.texture.draw_region(ctx, sprite.rect, params.clone());
-                } else if in_render_radius
-                    && memory_chunk.is_some()
-                    && memory_chunk.unwrap().memorized[idx]
-                {
-                    sprite.texture.draw_region(
-                        ctx,
-                        sprite.rect,
-                        params.clone().color(Color::rgb8(128, 128, 128)),
-                    );
-                }
+        let render_ys = -(render_radius as i32)..render_radius as i32;
+        let render_xs = -(render_radius as i32)..render_radius as i32;
 
-                if let Some(renderables) = ren_map.get(&(x + cam_pos.x, y + cam_pos.y)) {
-                    for Renderable(name) in renderables {
-                        let sprite = resources.sprites.get(name).unwrap();
-                        if is_visible {
-                            sprite.texture.draw_region(ctx, sprite.rect, params.clone());
-                        } else if in_render_radius
-                            && memory_chunk.is_some()
-                            && memory_chunk.unwrap().memorized[idx]
-                        {
-                            sprite.texture.draw_region(
-                                ctx,
-                                sprite.rect,
-                                params.clone().color(Color::rgb8(128, 128, 128)),
-                            );
-                        }
-                    }
+        let render_coords = render_ys.flat_map(move |y| {
+            render_xs
+                .clone()
+                .filter(move |x| (((x * x + y * y) as f64).sqrt() < render_radius as f64))
+                .map(move |x| (x, y))
+        });
+
+        for (x, y) in render_coords {
+            let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
+                + Vec2::new((14 * (x - y)) as f32, (7 * (y + x)) as f32);
+            if position.x < -20.
+                || position.x > w as f32
+                || position.y < -20.
+                || position.y > h as f32
+            {
+                continue;
+            }
+            let x_real = x + cam_pos.x;
+            let y_real = y + cam_pos.y;
+            let (ch_x, ch_y) = WorldMap::xy_chunk(x_real, y_real);
+            let chunk = map.get_chunk(ch_x, ch_y);
+            if chunk.is_none() {
+                continue;
+            }
+            let chunk = chunk.unwrap();
+            let memory_chunk = map_memory.get_chunk(ch_x, ch_y);
+            let idx = WorldMap::xy_index_chunk(x_real, y_real);
+            let tile = &chunk.tiles[idx];
+            let is_full = x <= 0 && 0 >= y || !chunk.obstacles[idx];
+            let sprite = resources
+                .sprites
+                .get(&tile.full_sprite)
+                .unwrap_or_else(|| sprite_not_found(&tile.full_sprite));
+            let fallback_sprite = tile.fallback_sprite.clone().map(|s| {
+                resources
+                    .sprites
+                    .get(s.as_ref())
+                    .unwrap_or_else(|| sprite_not_found(s.as_ref()))
+            });
+
+            let is_visible = sight_positions.contains(&(x, y));
+            let is_memorized = memory_chunk.map_or(false, |a| a.memorized[idx]);
+
+            if !is_visible && !is_memorized {
+                continue;
+            }
+
+            let mut params = DrawParams::new().position(position);
+
+            if !is_visible && is_memorized {
+                params = params.color(Color::rgb8(128, 128, 128))
+            }
+
+            if !is_full && is_visible {
+                params.color = params.color.with_alpha(0.7);
+            }
+
+            if let Some(fallback_sprite) = fallback_sprite {
+                fallback_sprite
+                    .texture
+                    .draw_region(ctx, fallback_sprite.rect, params.clone());
+            }
+            sprite.texture.draw_region(ctx, sprite.rect, params.clone());
+
+            if let Some(renderables) = ren_map.get(&(x_real, y_real)) {
+                for Renderable(name) in renderables {
+                    let sprite = resources
+                        .sprites
+                        .get(name)
+                        .unwrap_or_else(|| sprite_not_found(name));
+                    let shift_x = (30. - sprite.rect.width) / 2.;
+                    let shift_y = (40. - sprite.rect.height) / 2.;
+                    dbg!(shift_x, shift_y);
+                    let renderable_params = params
+                        .clone()
+                        .position(params.position + Vec2::new(shift_x, shift_y));
+                    sprite
+                        .texture
+                        .draw_region(ctx, sprite.rect, renderable_params);
                 }
             }
         }

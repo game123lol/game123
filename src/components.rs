@@ -1,11 +1,14 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use tetra::math::Vec2;
 
 use crate::map::Map;
 
 #[derive(Debug)]
-pub struct Renderable(pub String);
+pub struct Renderable(pub Arc<str>);
 
 pub struct Player;
 
@@ -17,7 +20,7 @@ pub struct Item;
 
 pub struct Sight(pub u32, pub BTreeSet<(i32, i32)>);
 
-pub struct Name(pub String);
+pub struct Name(pub Arc<str>);
 
 pub struct MapMemory {
     chunks: BTreeMap<(i32, i32), MemoryChunk>,
