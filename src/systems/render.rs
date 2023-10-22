@@ -138,7 +138,6 @@ impl GameSystem for RenderSystem {
                         .unwrap_or_else(|| sprite_not_found(name));
                     let shift_x = (30. - sprite.rect.width) / 2.;
                     let shift_y = (40. - sprite.rect.height) / 2.;
-                    dbg!(shift_x, shift_y);
                     let renderable_params = params
                         .clone()
                         .position(params.position + Vec2::new(shift_x, shift_y));

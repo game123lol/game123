@@ -108,7 +108,7 @@ impl Chunk {
         let floor_tile = Arc::new(Tile::new("grass", "grass"));
         for _ in 0..height {
             for _ in 0..width {
-                if rnd.read::<u32>() % 3000 == 0 {
+                if rnd.read::<u32>() % 300 == 0 {
                     tiles.push(wall_tile.clone());
                     obstacles.push(true);
                 } else {
