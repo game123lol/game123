@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Mutex};
 
 use tetra::{
     graphics::{Color, DrawParams},
@@ -8,7 +8,7 @@ use tetra::{
 
 use crate::{
     components::{Item, MapMemory, Mob, Player, Position, Renderable, Sight},
-    map::{Map, WorldMap},
+    map::{Chunk, Map, WorldMap},
     need_components,
 };
 
@@ -23,6 +23,13 @@ fn sprite_not_found<T>(name: &str) -> T {
         "Ты какой-то неправильный спрайт ({}) дёргаешь переписывай",
         name
     );
+}
+
+const fn xy_tile(num: u32, render_radius: u32) -> (i32, i32) {
+    (
+        -(render_radius as i32) + (num % (render_radius * 2)) as i32,
+        -(render_radius as i32) + (num / (render_radius * 2)) as i32,
+    )
 }
 
 impl GameSystem for RenderSystem {
@@ -63,15 +70,11 @@ impl GameSystem for RenderSystem {
         }
         let render_radius = sight_radius + 30;
 
-        let render_ys = -(render_radius as i32)..render_radius as i32;
-        let render_xs = -(render_radius as i32)..render_radius as i32;
+        let render_coords = (0..render_radius * render_radius * 4)
+            .map(|n| xy_tile(n, render_radius))
+            .filter(move |(x, y)| ((x * x + y * y) as f64).sqrt() < render_radius as f64);
 
-        let render_coords = render_ys.flat_map(move |y| {
-            render_xs
-                .clone()
-                .filter(move |x| (((x * x + y * y) as f64).sqrt() < render_radius as f64))
-                .map(move |x| (x, y))
-        });
+        let mut chunk_cache: Vec<((i32, i32), Option<&Mutex<Chunk>>)> = Vec::new();
 
         for (x, y) in render_coords {
             let position = Vec2::new(w as f32 / 2., h as f32 / 2.)
@@ -86,28 +89,36 @@ impl GameSystem for RenderSystem {
             let x_real = x + cam_pos.x;
             let y_real = y + cam_pos.y;
             let (ch_x, ch_y) = WorldMap::xy_chunk(x_real, y_real);
-            let chunk = map.get_chunk(ch_x, ch_y);
+            let chunk =
+                if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y)) {
+                    *chunk
+                } else {
+                    let link = map.get_chunk(ch_x, ch_y);
+                    chunk_cache.push(((ch_x, ch_y), link));
+                    link
+                };
+
             if chunk.is_none() {
                 continue;
             }
-            let chunk = chunk.unwrap();
+            let chunk = chunk.unwrap().lock().unwrap();
             let memory_chunk = map_memory.get_chunk(ch_x, ch_y);
             let idx = WorldMap::xy_index_chunk(x_real, y_real);
             let tile = &chunk.tiles[idx];
             let is_full = x <= 0 && 0 >= y || !chunk.obstacles[idx];
             let sprite = resources
                 .sprites
-                .get(&tile.full_sprite)
-                .unwrap_or_else(|| sprite_not_found(&tile.full_sprite));
-            let fallback_sprite = tile.fallback_sprite.clone().map(|s| {
+                .get(tile.full_sprite)
+                .unwrap_or_else(|| sprite_not_found(tile.full_sprite));
+            let fallback_sprite = tile.fallback_sprite.map(|s| {
                 resources
                     .sprites
-                    .get(s.as_ref())
-                    .unwrap_or_else(|| sprite_not_found(s.as_ref()))
+                    .get(s)
+                    .unwrap_or_else(|| sprite_not_found(s))
             });
 
             let is_visible = sight_positions.contains(&(x, y));
-            let is_memorized = memory_chunk.map_or(false, |a| a.memorized[idx]);
+            let is_memorized = memory_chunk.map_or(false, |a| a.lock().unwrap().memorized[idx]);
 
             if !is_visible && !is_memorized {
                 continue;
@@ -134,7 +145,7 @@ impl GameSystem for RenderSystem {
                 for Renderable(name) in renderables {
                     let sprite = resources
                         .sprites
-                        .get(name)
+                        .get(*name)
                         .unwrap_or_else(|| sprite_not_found(name));
                     let shift_x = (30. - sprite.rect.width) / 2.;
                     let shift_y = (40. - sprite.rect.height) / 2.;

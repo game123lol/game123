@@ -112,7 +112,7 @@ impl Game {
         world.spawn((
             Item, //TODO: убрать эту отсебятину и сделать норм генератор предметов
             Name("item".into()),
-            Renderable("item".into()),
+            Renderable("item"),
             Position(Vec2::new(2, 2)),
         ));
         let scaler = ScreenScaler::new(

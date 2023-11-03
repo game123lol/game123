@@ -40,6 +40,7 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
       	buildInputs = with pkgs; [ 
           (rustVersion.override { extensions = [ "rust-src" "rust-analyzer" ]; }) 
           gdb
+          linuxPackages.perf
           lldb
           alsaLib
           grafx2
