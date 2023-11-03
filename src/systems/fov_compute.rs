@@ -1,11 +1,11 @@
-use std::collections::BTreeSet;
+use std::sync::Mutex;
 
 use hecs::World;
 use tetra::math::Vec2;
 
 use crate::{
     components::{Player, Position, Sight},
-    map::{Map, WorldMap},
+    map::{Chunk, Map, WorldMap},
     need_components,
 };
 
@@ -41,20 +41,29 @@ impl WorldSystem for FovComputeSystem {
         sight_tiles.clear();
         sight_tiles.insert((0, 0));
 
-        for dir in vec![
+        let dirs = [
             Direction::Up,
             Direction::Left,
             Direction::Down,
             Direction::Right,
-        ] {
-            cast(cam_pos, &dir, map, sight_tiles, *sight_radius);
+        ];
+        let chunks_depth = (*sight_radius / 15 + 3) as i32;
+        let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y);
+        for i in -chunks_depth..chunks_depth {
+            for j in -chunks_depth..chunks_depth {
+                map.get_chunk_or_create(current_chunk.0 + i, current_chunk.1 + j);
+            }
         }
+
+        for dir in dirs.iter() {
+            sight_tiles.extend(cast(cam_pos, &dir, map, *sight_radius));
+        } // тяжело, тяжело
         Ok(())
     }
 }
 
 impl Row {
-    fn new(depth: i32, slope: (f64, f64)) -> Self {
+    const fn new(depth: i32, slope: (f64, f64)) -> Self {
         Row { depth, slope }
     }
 
@@ -63,20 +72,20 @@ impl Row {
         let max_col = (self.slope.1 * self.depth as f64 + 0.5).floor() as i32;
         Box::new((min_col..=max_col).map(|col| (self.depth, col)))
     }
-    fn next(&self) -> Self {
+    const fn next(&self) -> Self {
         Row::new(self.depth + 1, self.slope)
     }
 }
 
 fn slope(depth: i32, col: i32) -> f64 {
-    (2.0 * col as f64 - 1.0) / (2.0 * depth as f64)
+    (2 * col - 1) as f64 / (2 * depth) as f64
 }
 
 fn is_symmetric(row: &Row, col: i32) -> bool {
     col as f64 >= row.depth as f64 * row.slope.0 && col as f64 <= row.depth as f64 * row.slope.1
 }
 
-fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
+const fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
     match direction {
         Direction::Up => (col, -row),
         Direction::Down => (col, row),
@@ -88,11 +97,12 @@ fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
 fn cast(
     cam_pos: &Vec2<i32>,
     dir: &Direction,
-    map: &mut WorldMap,
-    sight_tiles: &mut BTreeSet<(i32, i32)>,
+    map: &WorldMap,
     sight_radius: u32,
-) {
+) -> Vec<(i32, i32)> {
+    let mut sight_tiles = Vec::new();
     let mut row_stack: Vec<Row> = Vec::new();
+    let mut chunk_cache: Vec<((i32, i32), *const Mutex<Chunk>)> = Vec::new();
     row_stack.push(Row::new(1, (-1., 1.)));
     while let Some(row) = row_stack.pop() {
         let mut row = row;
@@ -105,11 +115,19 @@ fn cast(
             let crds = transform(dir, col, depth);
             let (x, y) = shift_back(crds);
             let (ch_x, ch_y) = WorldMap::xy_chunk(x, y);
-            let chunk = map.get_chunk_or_create(ch_x, ch_y);
+            let chunk_mutex =
+                if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y)) {
+                    unsafe { chunk.as_ref().unwrap() }
+                } else {
+                    let link = map.get_chunk(ch_x, ch_y).unwrap();
+                    chunk_cache.push(((ch_x, ch_y), link));
+                    link
+                };
+            let chunk = chunk_mutex.lock().unwrap();
             let real_crd = WorldMap::xy_index_chunk(x, y);
             let is_obstacle = chunk.obstacles[real_crd];
             if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
-                sight_tiles.insert(crds);
+                sight_tiles.push(crds);
             }
             if let Some(is_prev_obstacle) = is_prev_obstacle {
                 if !is_prev_obstacle && is_obstacle {
@@ -132,4 +150,5 @@ fn cast(
             row_stack.push(row.next());
         }
     }
+    sight_tiles
 }

@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use tetra::math::Vec2;
@@ -8,7 +8,7 @@ use tetra::math::Vec2;
 use crate::map::Map;
 
 #[derive(Debug)]
-pub struct Renderable(pub Arc<str>);
+pub struct Renderable(pub &'static str);
 
 pub struct Player;
 
@@ -23,11 +23,11 @@ pub struct Sight(pub u32, pub BTreeSet<(i32, i32)>);
 pub struct Name(pub Arc<str>);
 
 pub struct MapMemory {
-    chunks: BTreeMap<(i32, i32), MemoryChunk>,
+    chunks: BTreeMap<(i32, i32), Mutex<MemoryChunk>>,
 }
 
 impl MapMemory {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         MapMemory {
             chunks: BTreeMap::new(),
         }
@@ -39,7 +39,7 @@ pub struct MemoryChunk {
 }
 
 impl MemoryChunk {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         MemoryChunk {
             memorized: [false; 255],
         }
@@ -47,17 +47,13 @@ impl MemoryChunk {
 }
 
 impl Map for MapMemory {
-    fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &MemoryChunk {
-        self.chunks.entry((x, y)).or_insert_with(MemoryChunk::new)
+    fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Mutex<MemoryChunk> {
+        self.chunks
+            .entry((x, y))
+            .or_insert_with(|| Mutex::new(MemoryChunk::new()))
     }
-    fn get_chunk(&self, x: i32, y: i32) -> Option<&MemoryChunk> {
+    fn get_chunk(&self, x: i32, y: i32) -> Option<&Mutex<MemoryChunk>> {
         self.chunks.get(&(x, y))
-    }
-    fn get_chunk_or_create_mut(&mut self, x: i32, y: i32) -> &mut MemoryChunk {
-        self.chunks.entry((x, y)).or_insert_with(MemoryChunk::new)
-    }
-    fn get_chunk_mut(&mut self, x: i32, y: i32) -> Option<&mut MemoryChunk> {
-        self.chunks.get_mut(&(x, y))
     }
 
     type Chunk = MemoryChunk;
