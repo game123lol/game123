@@ -18,10 +18,14 @@ macro_rules! init_systems {
 
 pub type Result = std::result::Result<(), self::error::Error>;
 
+/// Типаж систем, которые никак не влияют на игровой мир, и ориентированы на взаимодействие с игроком.
+/// Примером служит система рендеринга.
 pub trait GameSystem {
     fn run(&self, game: &Game, ctx: &mut Context) -> self::Result;
 }
 
+/// Типаж систем, которые определяют взаимодействия сущностей во внутреигровом мире, а
+/// также обрабатывают действия игрока
 pub trait WorldSystem {
     fn run(&self, world: &World, ctx: &Context) -> self::Result;
 }
