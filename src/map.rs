@@ -1,15 +1,21 @@
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, Mutex},
-    time::UNIX_EPOCH,
+use {
+    random::Source,
+    std::{
+        collections::BTreeMap,
+        sync::{Arc, Mutex},
+        time::UNIX_EPOCH,
+    },
 };
 
-use random::Source;
-
+/// Структура, содержащая информацию о тайле. Пока что она имеет только
+/// такие параметры, как имя тайла и название спрайтов, которыми нужно
+/// её отображать. Это будет изменено в ближайшее время.
 #[derive(Clone, Debug)]
 pub struct Tile {
     pub name: &'static str,
+    /// имя спрайта, которым нужно отображать этот тайл
     pub full_sprite: &'static str,
+    /// имя спрайта, который рисуется под full_sprite
     pub fallback_sprite: Option<&'static str>,
 }
 
