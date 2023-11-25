@@ -553,6 +553,7 @@ dependencies = [
  "hecs",
  "libc",
  "random",
+ "rayon",
  "serde",
  "serde_json",
  "tetra",
