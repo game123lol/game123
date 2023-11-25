@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use hecs::World;
+use rayon::prelude::*;
 use tetra::math::Vec2;
 
 use crate::{
@@ -54,10 +55,11 @@ impl WorldSystem for FovComputeSystem {
                 map.get_chunk_or_create(current_chunk.0 + i, current_chunk.1 + j);
             }
         }
-
-        for dir in dirs.iter() {
-            sight_tiles.extend(cast(cam_pos, &dir, map, *sight_radius));
-        } // тяжело, тяжело
+        sight_tiles.extend(
+            dirs.par_iter()
+                .flat_map(|dir| cast(cam_pos, &dir, map, *sight_radius))
+                .collect::<Vec<(i32, i32)>>(),
+        );
         Ok(())
     }
 }
