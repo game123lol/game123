@@ -48,11 +48,13 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           freetype
           expat
           openssl
-          pkgconfig
+          pkg-config
           fontconfig
           vulkan-validation-layers
           rust-analyzer
           SDL2
+          cmake
+          alsaLib
           wayland
           egl-wayland
         ];

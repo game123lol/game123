@@ -10,8 +10,6 @@ use crate::{
     need_components,
 };
 
-use super::WorldSystem;
-
 #[derive(Clone, Debug)]
 struct Row {
     depth: i32,
@@ -25,43 +23,39 @@ enum Direction {
     Right,
 }
 
-pub struct FovComputeSystem;
+pub fn run_fov_compute_system(world: &World, _ctx: &tetra::Context) -> super::Result {
+    let mut query = world.query::<(&mut WorldMap,)>();
+    let (_, (map,)) = query
+        .iter()
+        .next()
+        .ok_or(need_components!(FovSystem, WorldMap))?;
+    let mut query = world.query::<(&Player, &Position, &mut Sight)>();
+    let (_, (_, Position(cam_pos), Sight(sight_radius, sight_tiles))) = query
+        .iter()
+        .next()
+        .ok_or(need_components!(FovComputeSystem, Player, Position, Sight))?;
+    sight_tiles.clear();
+    sight_tiles.insert((0, 0));
 
-impl WorldSystem for FovComputeSystem {
-    fn run(&self, world: &World, _ctx: &tetra::Context) -> super::Result {
-        let mut query = world.query::<(&mut WorldMap,)>();
-        let (_, (map,)) = query
-            .iter()
-            .next()
-            .ok_or(need_components!(FovSystem, WorldMap))?;
-        let mut query = world.query::<(&Player, &Position, &mut Sight)>();
-        let (_, (_, Position(cam_pos), Sight(sight_radius, sight_tiles))) = query
-            .iter()
-            .next()
-            .ok_or(need_components!(FovComputeSystem, Player, Position, Sight))?;
-        sight_tiles.clear();
-        sight_tiles.insert((0, 0));
-
-        let dirs = [
-            Direction::Up,
-            Direction::Left,
-            Direction::Down,
-            Direction::Right,
-        ];
-        let chunks_depth = (*sight_radius / 15 + 3) as i32;
-        let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y);
-        for i in -chunks_depth..chunks_depth {
-            for j in -chunks_depth..chunks_depth {
-                map.get_chunk_or_create(current_chunk.0 + i, current_chunk.1 + j);
-            }
+    let dirs = [
+        Direction::Up,
+        Direction::Left,
+        Direction::Down,
+        Direction::Right,
+    ];
+    let chunks_depth = (*sight_radius / 15 + 3) as i32;
+    let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y);
+    for i in -chunks_depth..chunks_depth {
+        for j in -chunks_depth..chunks_depth {
+            map.get_chunk_or_create(current_chunk.0 + i, current_chunk.1 + j);
         }
-        sight_tiles.extend(
-            dirs.par_iter()
-                .flat_map(|dir| cast(cam_pos, &dir, map, *sight_radius))
-                .collect::<Vec<(i32, i32)>>(),
-        );
-        Ok(())
     }
+    sight_tiles.extend(
+        dirs.par_iter()
+            .flat_map(|dir| cast(cam_pos, dir, map, *sight_radius))
+            .collect::<Vec<(i32, i32)>>(),
+    );
+    Ok(())
 }
 
 impl Row {
