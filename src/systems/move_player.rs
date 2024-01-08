@@ -1,54 +1,43 @@
-use hecs::World;
-use tetra::{
-    input::{get_keys_down, Key},
-    math::Vec2,
-    Context,
-};
+use hecs::{CommandBuffer, World};
+use tetra::math::Vec2;
 
 use crate::{
-    components::{Player, Position},
+    components::{Position, WantsMove},
     map::WorldMap,
-    need_components,
+    need_components, Direction,
 };
 
-use super::WorldSystem;
-
-pub struct MovePlayerSystem;
-
-impl WorldSystem for MovePlayerSystem {
-    fn run(&self, world: &World, ctx: &Context) -> super::Result {
-        let mut binding = world.query::<(&Player, &mut Position)>();
-        let (_, (_, Position(pos))) = binding.into_iter().next().ok_or(need_components!(
-            MovePlayerSystem,
-            Player,
-            Position
-        ))?;
-        let mut binding = world.query::<(&mut WorldMap,)>();
-        let (_, (map,)) = binding
-            .into_iter()
-            .next()
-            .ok_or(need_components!(MovePlayerSystem, Map))?;
-        for key in get_keys_down(ctx) {
-            let mut step = *pos;
-            match key {
-                Key::W => {
-                    step += Vec2::new(0, -1);
-                }
-                Key::S => {
-                    step += Vec2::new(0, 1);
-                }
-                Key::A => {
-                    step += Vec2::new(-1, 0);
-                }
-                Key::D => {
-                    step += Vec2::new(1, 0);
-                }
-                _ => {}
+pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
+    let mut movables = world.query::<(&mut Position, &WantsMove)>();
+    let mut binding = world.query::<(&mut WorldMap,)>();
+    let (_, (map,)) = binding
+        .into_iter()
+        .next()
+        .ok_or(need_components!(MovePlayerSystem, Map))?;
+    let mut cmd = CommandBuffer::new();
+    for (e, (Position(pos), WantsMove(dir))) in movables.into_iter() {
+        let mut step = *pos;
+        match dir {
+            Direction::Up => {
+                step += Vec2::new(0, -1);
             }
-            if !map.get_obstacle_or_create(step.x, step.y) {
-                *pos = step;
+            Direction::Down => {
+                step += Vec2::new(0, 1);
+            }
+            Direction::Left => {
+                step += Vec2::new(-1, 0);
+            }
+            Direction::Right => {
+                step += Vec2::new(1, 0);
             }
         }
-        Ok(())
+        if !map.get_obstacle_or_create(step.x, step.y) {
+            *pos = step;
+        }
+        cmd.remove_one::<&WantsMove>(e);
     }
+    drop(movables);
+    drop(binding);
+    cmd.run_on(world);
+    Ok(())
 }

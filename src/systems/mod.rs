@@ -3,8 +3,14 @@ use tetra::Context;
 
 use crate::Game;
 
+use self::{
+    fov_compute::run_fov_compute_system, input::run_input_system, memory::run_memory_system,
+    move_player::run_move_system,
+};
+
 pub mod error;
 pub mod fov_compute;
+pub mod input;
 pub mod memory;
 pub mod move_player;
 pub mod render;
@@ -18,14 +24,32 @@ macro_rules! init_systems {
 
 pub type Result = std::result::Result<(), self::error::Error>;
 
-/// Типаж систем, которые никак не влияют на игровой мир, и ориентированы на взаимодействие с игроком.
-/// Примером служит система рендеринга.
-pub trait GameSystem {
-    fn run(&self, game: &Game, ctx: &mut Context) -> self::Result;
+#[derive(Clone, Copy)]
+pub enum GameSystem {
+    InputSystem,
+}
+#[derive(Clone, Copy)]
+pub enum WorldSystem {
+    FovCompute,
+    Move,
+    Memory,
 }
 
-/// Типаж систем, которые определяют взаимодействия сущностей во внутреигровом мире, а
-/// также обрабатывают действия игрока
-pub trait WorldSystem {
-    fn run(&self, world: &World, ctx: &Context) -> self::Result;
+impl WorldSystem {
+    pub fn run(&self, world: &mut World, ctx: &mut Context) -> anyhow::Result<()> {
+        match self {
+            WorldSystem::FovCompute => run_fov_compute_system(world, ctx)?,
+            WorldSystem::Move => run_move_system(world)?,
+            WorldSystem::Memory => run_memory_system(world, ctx)?,
+        }
+        Ok(())
+    }
+}
+
+impl GameSystem {
+    pub fn run(&self, game: &mut Game, ctx: &mut Context) -> std::result::Result<(), error::Error> {
+        match self {
+            GameSystem::InputSystem => run_input_system(game, ctx),
+        }
+    }
 }
