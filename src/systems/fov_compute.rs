@@ -1,7 +1,6 @@
 use std::sync::Mutex;
 
 use hecs::World;
-use rayon::prelude::*;
 use tetra::math::Vec2;
 
 use crate::{
@@ -10,10 +9,12 @@ use crate::{
     need_components,
 };
 
+use rationals::ConstRational;
+
 #[derive(Clone, Debug)]
 struct Row {
     depth: i32,
-    slope: (f64, f64),
+    slope: (ConstRational, ConstRational),
 }
 
 enum Direction {
@@ -51,7 +52,7 @@ pub fn run_fov_compute_system(world: &World, _ctx: &tetra::Context) -> super::Re
         }
     }
     sight_tiles.extend(
-        dirs.par_iter()
+        dirs.iter()
             .flat_map(|dir| cast(cam_pos, dir, map, *sight_radius))
             .collect::<Vec<(i32, i32)>>(),
     );
@@ -59,13 +60,18 @@ pub fn run_fov_compute_system(world: &World, _ctx: &tetra::Context) -> super::Re
 }
 
 impl Row {
-    const fn new(depth: i32, slope: (f64, f64)) -> Self {
+    const fn new(depth: i32, slope: (ConstRational, ConstRational)) -> Self {
         Row { depth, slope }
     }
 
     fn tiles(&self) -> Box<dyn Iterator<Item = (i32, i32)> + '_> {
-        let min_col = (self.slope.0 * self.depth as f64 + 0.5).floor() as i32;
-        let max_col = (self.slope.1 * self.depth as f64 + 0.5).floor() as i32;
+        let min_col = (self.slope.0.mul(ConstRational::new(self.depth, 1))).floor();
+        let max_col = (self
+            .slope
+            .1
+            .mul(ConstRational::new(self.depth, 1))
+            .add(ConstRational::new(1, 2)))
+        .floor();
         Box::new((min_col..=max_col).map(|col| (self.depth, col)))
     }
     const fn next(&self) -> Self {
@@ -73,12 +79,13 @@ impl Row {
     }
 }
 
-fn slope(depth: i32, col: i32) -> f64 {
-    (2 * col - 1) as f64 / (2 * depth) as f64
+pub const fn slope(depth: i32, col: i32) -> ConstRational {
+    ConstRational::new(2 * col - 1, 2 * depth)
 }
 
-fn is_symmetric(row: &Row, col: i32) -> bool {
-    col as f64 >= row.depth as f64 * row.slope.0 && col as f64 <= row.depth as f64 * row.slope.1
+const fn is_symmetric(row: &Row, col: i32) -> bool {
+    ConstRational::new(col, 1).ge(ConstRational::new(row.depth, 1).mul(row.slope.0))
+        && ConstRational::new(col, 1).le(ConstRational::new(row.depth, 1).mul(row.slope.1))
 }
 
 const fn transform(direction: &Direction, col: i32, row: i32) -> (i32, i32) {
@@ -99,7 +106,10 @@ fn cast(
     let mut sight_tiles = Vec::new();
     let mut row_stack: Vec<Row> = Vec::new();
     let mut chunk_cache: Vec<((i32, i32), *const Mutex<Chunk>)> = Vec::new();
-    row_stack.push(Row::new(1, (-1., 1.)));
+    row_stack.push(Row::new(
+        1,
+        (ConstRational::new(-1, 1), ConstRational::new(1, 1)),
+    ));
     while let Some(row) = row_stack.pop() {
         let mut row = row;
         let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);

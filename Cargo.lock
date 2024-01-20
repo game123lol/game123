@@ -553,7 +553,7 @@ dependencies = [
  "hecs",
  "libc",
  "random",
- "rayon",
+ "rationals",
  "serde",
  "serde_json",
  "tetra",
@@ -1253,6 +1253,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c7093a82705b48f10d4b165c6482dbe9f58cd63a870d85537e857b2badbd88"
 
 [[package]]
+name = "rationals"
+version = "0.1.0"
+
+[[package]]
 name = "raw-window-handle"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1345,9 +1349,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.20"
+version = "0.38.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67ce50cb2e16c2903e30d1cbccfd8387a74b9d4c938b6a4c5ec6cc7556f7a8a0"
+checksum = "2b426b0506e5d50a7d8dafcf2e81471400deb602392c7dd110815afb4eaf02a3"
 dependencies = [
  "bitflags 2.4.1",
  "errno",

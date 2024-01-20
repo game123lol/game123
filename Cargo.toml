@@ -1,3 +1,4 @@
+workspace = { members = ["lib/rationals"] }
 [package]
 name = "game123"
 version = "0.1.0"
@@ -14,7 +15,7 @@ serde_json = "1.0.107"
 egui-tetra = { git = "https://github.com/Nuxssss/egui-tetra", rev = "931ed05" }
 anyhow = "*"
 libc = "0.2.149"
-rayon = "1.8.0"
+rationals = { path = "./lib/rationals" }
 
 [profile.release]
 strip = true

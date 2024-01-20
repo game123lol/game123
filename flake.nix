@@ -41,7 +41,7 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           (rustVersion.override { extensions = [ "rust-src" "rust-analyzer" ]; }) 
           gdb
           linuxPackages.perf
-          lldb
+          cargo-flamegraph
           alsaLib
           grafx2
           cmake

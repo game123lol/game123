@@ -21,7 +21,7 @@ type PlayerType = (
 pub const fn new_player() -> PlayerType {
     (
         Position(Vec2::new(1, 1)),
-        Sight(50, BTreeSet::new()),
+        Sight(10, BTreeSet::new()),
         Renderable("person"),
         Player,
         Mob,
