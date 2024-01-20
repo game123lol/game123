@@ -234,7 +234,7 @@ pub fn main() -> anyhow::Result<()> {
         .show_mouse(true)
         .grab_mouse(false)
         .key_repeat(true)
-        .timestep(tetra::time::Timestep::Fixed(20.))
+        //      .timestep(tetra::time::Timestep::Fixed(20.))
         .build()?
         .run(|ctx| Ok(StateWrapper::new(Game::new(ctx)?)))
     {
