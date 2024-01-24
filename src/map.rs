@@ -62,6 +62,7 @@ const fn const_xy_index_chunk(x: i32, y: i32) -> usize {
 
 pub trait Map {
     type Chunk;
+    /// Функция, которая вычисляет координаты чанка от глобальной координаты
     #[inline]
     fn xy_chunk(x: i32, y: i32) -> (i32, i32) {
         const_xy_chunk(x, y)
