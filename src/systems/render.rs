@@ -95,6 +95,7 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         let chunk = chunk.unwrap().lock().unwrap();
         let memory_chunk = map_memory.get_chunk(ch_x, ch_y);
         let idx = WorldMap::xy_index_chunk(x_real, y_real);
+        let is_border = idx < 15 || idx % 15 == 0;
         let tile = &chunk.tiles[idx];
         let is_full = x <= 0 && 0 >= y || !chunk.obstacles[idx];
         let sprite = resources
@@ -111,7 +112,9 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         let is_visible = sight_positions.contains(&(x, y));
         let is_memorized = memory_chunk.map_or(false, |a| a.lock().unwrap().memorized[idx]);
 
-        if !is_visible && !is_memorized {
+        if
+        // !is_visible &&
+        !is_memorized {
             continue;
         }
 
@@ -123,6 +126,10 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
 
         if !is_full && is_visible {
             params.color = params.color.with_alpha(0.7);
+        }
+
+        if is_border {
+            params.color = params.color.with_green(0.1).with_blue(0.1);
         }
 
         if let Some(fallback_sprite) = fallback_sprite {

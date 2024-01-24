@@ -137,9 +137,9 @@ fn cast(
             }
             if let Some(is_prev_obstacle) = is_prev_obstacle {
                 if !is_prev_obstacle && is_obstacle {
-                    let mut next_row = row.next();
-                    next_row.slope.1 = slope(depth, col);
                     if row.depth < sight_radius as i32 {
+                        let mut next_row = row.next();
+                        next_row.slope.1 = slope(depth, col);
                         row_stack.push(next_row);
                     }
                 }
