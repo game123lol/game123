@@ -48,8 +48,10 @@ pub struct Chunk {
 
 const fn const_xy_chunk(x: i32, y: i32) -> (i32, i32) {
     (
-        (x.abs() + 7) * x.signum() / 15,
-        (y.abs() + 7) * y.signum() / 15,
+        ((x % 15) / 8 + x / 15),
+        ((y % 15) / 8 + y / 15),
+        //(x.abs() + 7) * x.signum() / 15,
+        //(y.abs() + 7) * y.signum() / 15,
     )
 }
 
