@@ -22,14 +22,15 @@ pub fn run_memory_system(world: &hecs::World, _ctx: &tetra::Context) -> super::R
     for sight_coord in sight_tiles.iter() {
         let (x, y) = shift_back(*sight_coord);
         let (ch_x, ch_y) = MapMemory::xy_chunk(x, y);
-        let chunk_mutex =
-            if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y)) {
-                unsafe { chunk.as_ref().unwrap() }
-            } else {
-                let link = map_memory.get_chunk_or_create(ch_x, ch_y);
-                chunk_cache.push(((ch_x, ch_y), link));
-                link
-            };
+        let chunk_mutex = map_memory.get_chunk_or_create(ch_x, ch_y);
+        //        let chunk_mutex =
+        //            if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y)) {
+        //                unsafe { chunk.as_ref().unwrap() }
+        //            } else {
+        //                let link = map_memory.get_chunk_or_create(ch_x, ch_y);
+        //                chunk_cache.push(((ch_x, ch_y), link));
+        //                link
+        //            };
         let mut chunk = chunk_mutex.lock().unwrap();
 
         let real_crd = MapMemory::xy_index_chunk(x, y);

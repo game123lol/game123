@@ -15,10 +15,49 @@ fn map_index() {
 
 #[test]
 fn chunk_xy() {
-    let ch_xy = WorldMap::xy_chunk(0, 0);
-    assert_eq!(0, 0);
-    let ch_xy = WorldMap::xy_chunk(15, 15);
-    assert_eq!(1, 1);
-    let ch_xy = WorldMap::xy_chunk(-15, -15);
-    assert_eq!(-1, -1);
+    for i in -7..=7 {
+        for j in -7..=7 {
+            assert_eq!((0, 0), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7..=7 {
+        for j in -7 + 15..=7 + 15 {
+            assert_eq!((0, 1), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7..=7 {
+        for j in -7 - 15..=7 - 15 {
+            assert_eq!((0, -1), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 + 15..=7 + 15 {
+        for j in -7..=7 {
+            assert_eq!((1, 0), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 - 15..=7 - 15 {
+        for j in -7..=7 {
+            assert_eq!((-1, 0), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 + 15..=7 + 15 {
+        for j in -7 + 15..=7 + 15 {
+            assert_eq!((1, 1), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 - 15..=7 - 15 {
+        for j in -7 - 15..=7 - 15 {
+            assert_eq!((-1, -1), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 + 15..=7 + 15 {
+        for j in -7 - 15..=7 - 15 {
+            assert_eq!((1, -1), WorldMap::xy_chunk(i, j));
+        }
+    }
+    for i in -7 - 15..=7 - 15 {
+        for j in -7 + 15..=7 + 15 {
+            assert_eq!((-1, 1), WorldMap::xy_chunk(i, j));
+        }
+    }
 }

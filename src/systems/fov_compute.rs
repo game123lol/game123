@@ -64,7 +64,7 @@ impl Row {
         Row { depth, slope }
     }
 
-    fn tiles(&self) -> Box<dyn Iterator<Item = (i32, i32)> + '_> {
+    const fn tiles(&self) -> (i32, i32, i32) {
         let min_col = (self.slope.0.mul(ConstRational::new(self.depth, 1))).floor();
         let max_col = (self
             .slope
@@ -72,7 +72,7 @@ impl Row {
             .mul(ConstRational::new(self.depth, 1))
             .add(ConstRational::new(1, 2)))
         .floor();
-        Box::new((min_col..=max_col).map(|col| (self.depth, col)))
+        (self.depth, min_col, max_col)
     }
     const fn next(&self) -> Self {
         Row::new(self.depth + 1, self.slope)
@@ -114,7 +114,8 @@ fn cast(
         let mut row = row;
         let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
         let mut is_prev_obstacle: Option<bool> = None;
-        for (depth, col) in row.clone().tiles() {
+        let (depth, min_col, max_col) = row.clone().tiles();
+        for col in min_col..=max_col {
             let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
             let in_sight_radius = hypotenuse <= sight_radius as f64;
 
