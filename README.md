@@ -1,4 +1,5 @@
 # О проекте
+![meme.jpg](assets/meme.jpg)
 
 Дизайн-документ: [link](doc/DESIGN.md)
 
