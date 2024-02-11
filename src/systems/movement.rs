@@ -1,11 +1,9 @@
 use hecs::{CommandBuffer, World};
 use tetra::math::Vec2;
 
-use crate::{
-    components::{Position, WantsMove},
-    map::WorldMap,
-    need_components, Direction,
-};
+use crate::{components::Position, map::WorldMap, need_components, Direction};
+
+pub struct WantsMove(pub Direction);
 
 pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
     let mut movables = world.query::<(&mut Position, &WantsMove)>();

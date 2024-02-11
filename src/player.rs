@@ -4,9 +4,17 @@ use hecs::{Entity, World};
 use tetra::math::Vec2;
 
 use crate::{
-    components::{Inventory, MapMemory, Mob, Player, Position, Renderable, Sight},
+    components::Position,
     need_components,
+    systems::{fov_compute::Sight, memory::MapMemory, render::Renderable},
+    Mob,
 };
+
+/// Компонент, означающий, что сущность с этим компонентом - управляема игроком.
+/// Ожидается, что она должна встречаться только один раз в игре.
+pub struct Player;
+
+pub struct Inventory(pub Vec<Entity>);
 
 type PlayerType = (
     Position,

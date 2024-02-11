@@ -5,14 +5,14 @@ use crate::Game;
 
 use self::{
     fov_compute::run_fov_compute_system, input::run_input_system, memory::run_memory_system,
-    move_player::run_move_system,
+    movement::run_move_system,
 };
 
 pub mod error;
 pub mod fov_compute;
 pub mod input;
 pub mod memory;
-pub mod move_player;
+pub mod movement;
 pub mod render;
 
 #[macro_export]

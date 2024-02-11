@@ -1,20 +1,26 @@
 mod components;
+mod items;
 mod map;
 mod player;
 mod resources;
 mod systems;
 mod tests;
-use components::{Item, Name, Player, Position, Renderable, WantsMove};
+use components::{Name, Position};
 use egui_tetra::{
     egui::{self, Pos2},
     StateWrapper,
 };
 use hecs::{Entity, World};
+use items::Item;
 use map::WorldMap;
-use player::{get_player_items, new_player};
+use player::{get_player_items, new_player, Player};
 use resources::Resources;
 use std::{collections::HashMap, env};
-use systems::{render::run_render_system, GameSystem, WorldSystem};
+use systems::{
+    movement::WantsMove,
+    render::{run_render_system, Renderable},
+    GameSystem, WorldSystem,
+};
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color},
     input::Key,
@@ -32,6 +38,10 @@ enum UIState {
     Inventory { items: Vec<Entity> },
     Debug,
 }
+
+/// Компонент, означающий, что сущность с этим компонентом - как-либо действующиее
+/// существо. Это может быть игрок или неигровой персонаж.
+pub struct Mob;
 
 pub type DialogKeys = HashMap<Key, PlayerAction>;
 

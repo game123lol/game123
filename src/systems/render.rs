@@ -7,10 +7,15 @@ use tetra::{
 };
 
 use crate::{
-    components::{Item, MapMemory, Mob, Player, Position, Renderable, Sight},
+    components::Position,
+    items::Item,
     map::{Chunk, Map, WorldMap},
-    need_components, Game,
+    need_components,
+    player::Player,
+    Game, Mob,
 };
+
+use super::{fov_compute::Sight, memory::MapMemory};
 
 //TODO: Сделать ошибки об отсутствии спрайтов более информативными
 fn sprite_not_found<T>(name: &str) -> T {
@@ -26,6 +31,13 @@ const fn xy_tile(num: u32, render_radius: u32) -> (i32, i32) {
         -(render_radius as i32) + (num / (render_radius * 2)) as i32,
     )
 }
+
+/// Компонент, используемый в функции рендера. Все сущности, обладающие этим компонентом,
+/// а так же компонентами Position и Item или Mob, будут отрисованы.
+/// Компонент содержит в себе название спрайта, который будет отрисован.
+/// По этому названию будет сделан запрос в хранилище спрайтов resources (поле Game).
+#[derive(Debug)]
+pub struct Renderable(pub &'static str);
 
 pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
     let world = &game.world;

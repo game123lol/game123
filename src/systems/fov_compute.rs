@@ -1,12 +1,13 @@
-use std::sync::Mutex;
+use std::{collections::BTreeSet, sync::Mutex};
 
 use hecs::World;
 use tetra::math::Vec2;
 
 use crate::{
-    components::{Player, Position, Sight},
+    components::Position,
     map::{Chunk, Map, WorldMap},
     need_components,
+    player::Player,
 };
 
 use rationals::ConstRational;
@@ -16,6 +17,10 @@ struct Row {
     depth: i32,
     slope: (ConstRational, ConstRational),
 }
+
+/// Компонент, означающий, что сущность с этим компонентом имеет поле зрения.
+/// Он имеет в себе радиус поля зрения и множество координат, которые сущность видит.
+pub struct Sight(pub u32, pub BTreeSet<(i32, i32)>);
 
 enum Direction {
     Up,

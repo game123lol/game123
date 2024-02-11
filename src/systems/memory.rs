@@ -1,10 +1,47 @@
-use std::sync::Mutex;
+use std::{collections::BTreeMap, sync::Mutex};
 
-use crate::{
-    components::{MapMemory, MemoryChunk, Player, Position, Sight},
-    map::Map,
-    need_components,
-};
+use crate::{components::Position, map::Map, need_components, player::Player};
+
+use super::fov_compute::Sight;
+
+/// Компонент, означающий, что сущность запоминает тайлы, которые увидела однажды
+/// Хранит в себе карту, где вместо соответствующих тайлов содержатся булевы значения.
+pub struct MapMemory {
+    chunks: BTreeMap<(i32, i32), Mutex<MemoryChunk>>,
+}
+
+impl MapMemory {
+    pub const fn new() -> Self {
+        MapMemory {
+            chunks: BTreeMap::new(),
+        }
+    }
+}
+
+pub struct MemoryChunk {
+    pub memorized: [bool; 255],
+}
+
+impl MemoryChunk {
+    pub const fn new() -> Self {
+        MemoryChunk {
+            memorized: [false; 255],
+        }
+    }
+}
+
+impl Map for MapMemory {
+    fn get_chunk_or_create(&mut self, x: i32, y: i32) -> &Mutex<MemoryChunk> {
+        self.chunks
+            .entry((x, y))
+            .or_insert_with(|| Mutex::new(MemoryChunk::new()))
+    }
+    fn get_chunk(&self, x: i32, y: i32) -> Option<&Mutex<MemoryChunk>> {
+        self.chunks.get(&(x, y))
+    }
+
+    type Chunk = MemoryChunk;
+}
 
 pub fn run_memory_system(world: &hecs::World, _ctx: &tetra::Context) -> super::Result {
     let mut query = world.query::<(&Player, &Position, &Sight, &mut MapMemory)>();
@@ -18,7 +55,7 @@ pub fn run_memory_system(world: &hecs::World, _ctx: &tetra::Context) -> super::R
         ))?;
     let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
 
-    let mut chunk_cache: Vec<((i32, i32), *const Mutex<MemoryChunk>)> = Vec::new();
+    //let mut chunk_cache: Vec<((i32, i32), *const Mutex<MemoryChunk>)> = Vec::new();
     for sight_coord in sight_tiles.iter() {
         let (x, y) = shift_back(*sight_coord);
         let (ch_x, ch_y) = MapMemory::xy_chunk(x, y);
