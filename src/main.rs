@@ -5,26 +5,21 @@ mod player;
 mod resources;
 mod systems;
 mod tests;
-use components::{Name, Position};
+use components::Position;
 use egui_tetra::{
     egui::{self, Pos2},
     StateWrapper,
 };
-use hecs::{Entity, World};
-use items::Item;
+use hecs::{CommandBuffer, Entity, World};
+use items::{Item, Property};
 use map::WorldMap;
-use player::{get_player_items, new_player, Player};
+use player::{get_player_items, new_player, Inventory, Player};
 use resources::Resources;
 use std::{collections::HashMap, env};
-use systems::{
-    movement::WantsMove,
-    render::{run_render_system, Renderable},
-    GameSystem, WorldSystem,
-};
+use systems::{movement::WantsMove, render::run_render_system, GameSystem, WorldSystem};
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color},
     input::Key,
-    math::Vec2,
     window, Context, ContextBuilder,
 };
 
@@ -35,7 +30,7 @@ type Type = World;
 
 enum UIState {
     No,
-    Inventory { items: Vec<Entity> },
+    Inventory { items: Vec<Item> },
     Debug,
 }
 
@@ -64,6 +59,7 @@ impl UIConfig {
         world_keys.insert(Key::K, PlayerAction::Move(Direction::Up));
         world_keys.insert(Key::L, PlayerAction::Move(Direction::Right));
         world_keys.insert(Key::I, PlayerAction::OpenInventory);
+        world_keys.insert(Key::E, PlayerAction::PickUpItem);
 
         Self {
             dialogs_keys,
@@ -90,6 +86,7 @@ pub enum PlayerAction {
     Move(Direction),
     OpenInventory,
     CloseInventory,
+    PickUpItem,
     Nothing,
 }
 
@@ -118,8 +115,8 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     .fixed_pos(Pos2::new(1., 1.))
                     .show(egui_ctx, |ui| {
                         ui.label("Items in inventory:");
-                        for _ in items {
-                            ui.label("some item");
+                        for item in items {
+                            ui.label(item.name.clone());
                         }
                     });
             }
@@ -168,7 +165,30 @@ impl egui_tetra::State<anyhow::Error> for Game {
                 PlayerAction::CloseInventory => {
                     self.ui_state = UIState::No;
                 }
-                PlayerAction::Nothing => {}
+                PlayerAction::PickUpItem => {
+                    let mut bind_player =
+                        self.world.query::<(&Player, &Position, &mut Inventory)>();
+                    let (e, (_, player_pos, inventory)) = bind_player
+                        .into_iter()
+                        .next()
+                        .expect("Персонаж потерялся. Как так?");
+                    let mut bind_item = self.world.query::<(&Item, &Position)>();
+                    let items = bind_item.into_iter();
+                    let mut cmd = CommandBuffer::new();
+                    for (e, (item, pos)) in items {
+                        if *pos == *player_pos {
+                            inventory.0.push(item.clone());
+                            cmd.despawn(e);
+                            break;
+                        }
+                    }
+                    drop(bind_item);
+                    drop(bind_player);
+                    cmd.run_on(&mut self.world);
+                    self.is_paused = false;
+                    self.is_needed_redraw = true;
+                }
+                _ => {}
             }
             for system in self.game_systems.clone().iter() {
                 system.run(self, ctx)?
@@ -207,12 +227,9 @@ impl Game {
         let map = WorldMap::new();
         world.spawn((map,));
         world.spawn(new_player());
-        world.spawn((
-            Item, //TODO: убрать эту отсебятину и сделать норм генератор предметов
-            Name("item".into()),
-            Renderable("item"),
-            Position(Vec2::new(2, 2)),
-        ));
+        let mut item = Item::new("thing".into(), "item".into());
+        item.add_props(&[("huy".into(), Property::Marker)]);
+        world.spawn(item.to_map_entity(2, 2));
         let scaler = ScreenScaler::new(
             ctx,
             1000,

@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, sync::Mutex};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+};
 
 use tetra::{
     graphics::{Color, DrawParams},
@@ -37,7 +40,7 @@ const fn xy_tile(num: u32, render_radius: u32) -> (i32, i32) {
 /// Компонент содержит в себе название спрайта, который будет отрисован.
 /// По этому названию будет сделан запрос в хранилище спрайтов resources (поле Game).
 #[derive(Debug)]
-pub struct Renderable(pub &'static str);
+pub struct Renderable(pub Arc<str>);
 
 pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
     let world = &game.world;
@@ -155,7 +158,7 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
             for Renderable(name) in renderables {
                 let sprite = resources
                     .sprites
-                    .get(*name)
+                    .get(name)
                     .unwrap_or_else(|| sprite_not_found(name));
                 let shift_x = (30. - sprite.rect.width) / 2.;
                 let shift_y = (40. - sprite.rect.height) / 2.;
