@@ -81,7 +81,7 @@ pub struct Game {
     is_needed_redraw: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PlayerAction {
     Move(Direction),
     OpenInventory,

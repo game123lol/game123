@@ -32,8 +32,7 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
         if !map.get_obstacle_or_create(step.x, step.y) {
             *pos = step;
         }
-        cmd.remove::<(&WantsMove,)>(e); //FIXME: Компонент не удаляется
-        dbg!("removed wantsmove from", e);
+        cmd.remove_one::<WantsMove>(e);
     }
     drop(movables);
     drop(binding);
