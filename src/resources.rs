@@ -43,15 +43,15 @@ pub struct Resources {
 
 impl Resources {
     pub fn load(ctx: &mut Context, assets_path: &Path) -> Self {
-        let config_path = assets_path.join("assets.json");
-        let json_config = fs::read_to_string(config_path).unwrap_or_else(|_| {
+        let config_path = assets_path.join("assets.yaml");
+        let yaml_config = fs::read_to_string(config_path).unwrap_or_else(|_| {
             panic!(
-                "File assets.json not found in {} directory",
+                "File assets.yaml not found in {} directory",
                 assets_path.display()
             )
         });
         let config: ResourcesConfig =
-            serde_json::from_str(&json_config).expect("assets.json file is corrupted");
+            serde_yaml::from_str(&yaml_config).expect("assets.yaml file is corrupted");
         Self::new(ctx, &config, assets_path)
     }
     pub fn new(ctx: &mut Context, config: &ResourcesConfig, assets_path: &Path) -> Self {

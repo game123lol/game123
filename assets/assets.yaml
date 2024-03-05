@@ -1,0 +1,38 @@
+---
+textures:
+- source_file: person.png
+  sprite_size:
+  - 16
+  - 20
+  sprites:
+  - coords:
+    - 0
+    - 0
+    name: person
+- source_file: items.png
+  sprite_size:
+  - 16
+  - 16
+  sprites:
+  - coords:
+    - 0
+    - 0
+    name: item
+- source_file: iso_new.png
+  sprite_size:
+  - 30
+  - 40
+  sprites:
+  - coords:
+    - 0
+    - 0
+    name: vomit_lol
+  - coords:
+    - 1
+    - 0
+    name: grass
+  - coords:
+    - 0
+    - 1
+    name: cobblestone
+
