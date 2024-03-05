@@ -7,7 +7,7 @@ mod systems;
 mod tests;
 use components::Position;
 use egui_tetra::{
-    egui::{self, Pos2},
+    egui::{self, Pos2, Vec2},
     StateWrapper,
 };
 use hecs::{CommandBuffer, Entity, World};
@@ -15,8 +15,12 @@ use items::{Item, Property};
 use map::WorldMap;
 use player::{get_player_items, new_player, Inventory, Log, Player};
 use resources::Resources;
-use std::{collections::HashMap, env};
-use systems::{movement::WantsMove, render::run_render_system, GameSystem, WorldSystem};
+use std::{collections::HashMap, env, sync::Arc};
+use systems::{
+    movement::WantsMove,
+    render::{run_render_system, Renderable},
+    GameSystem, WorldSystem,
+};
 use tetra::{
     graphics::{self, scaling::ScreenScaler, Color},
     input::Key,
@@ -261,6 +265,12 @@ impl Game {
         let mut item = Item::new("thing".into(), "item".into());
         item.add_props(&[("huy".into(), Property::Marker)]);
         world.spawn(item.to_map_entity(2, 2));
+        let nettle = (
+            Position(tetra::math::Vec2::new(10, 10)),
+            Renderable(Arc::from("nettle")),
+            Mob,
+        );
+        world.spawn(nettle);
         let scaler = ScreenScaler::new(
             ctx,
             1000,
