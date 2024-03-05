@@ -13,7 +13,7 @@ use egui_tetra::{
 use hecs::{CommandBuffer, Entity, World};
 use items::{Item, Property};
 use map::WorldMap;
-use player::{get_player_items, new_player, Inventory, Player};
+use player::{get_player_items, new_player, Inventory, Log, Player};
 use resources::Resources;
 use std::{collections::HashMap, env};
 use systems::{movement::WantsMove, render::run_render_system, GameSystem, WorldSystem};
@@ -31,6 +31,7 @@ type Type = World;
 enum UIState {
     No,
     Inventory { items: Vec<Item> },
+    Log { text: String },
     Debug,
 }
 
@@ -51,6 +52,9 @@ impl UIConfig {
         let mut inventory_keys = HashMap::new();
         inventory_keys.insert(Key::Q, PlayerAction::CloseInventory);
         dialogs_keys.insert("inventory".into(), inventory_keys);
+        let mut log_keys = HashMap::new();
+        log_keys.insert(Key::Q, PlayerAction::CloseLog);
+        dialogs_keys.insert("log".into(), log_keys);
 
         let mut world_keys = HashMap::new();
 
@@ -60,6 +64,7 @@ impl UIConfig {
         world_keys.insert(Key::L, PlayerAction::Move(Direction::Right));
         world_keys.insert(Key::I, PlayerAction::OpenInventory);
         world_keys.insert(Key::E, PlayerAction::PickUpItem);
+        world_keys.insert(Key::P, PlayerAction::OpenLog);
 
         Self {
             dialogs_keys,
@@ -86,6 +91,8 @@ pub enum PlayerAction {
     Move(Direction),
     OpenInventory,
     CloseInventory,
+    OpenLog,
+    CloseLog,
     PickUpItem,
     Nothing,
 }
@@ -108,7 +115,7 @@ enum Action {
 }
 
 impl egui_tetra::State<anyhow::Error> for Game {
-    fn ui(&mut self, _ctx: &mut tetra::Context, egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
+    fn ui(&mut self, ctx: &mut tetra::Context, egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
         match &self.ui_state {
             UIState::Inventory { items } => {
                 egui::Window::new("Inventory")
@@ -122,9 +129,21 @@ impl egui_tetra::State<anyhow::Error> for Game {
             }
             UIState::No => {}
             UIState::Debug => {
+                let fps = tetra::time::get_fps(&ctx);
                 egui::Window::new("Debug")
                     .fixed_pos(Pos2::new(1., 1.))
-                    .show(egui_ctx, |_ui| {});
+                    .show(egui_ctx, |ui| {
+                        ui.label(format!("fps: {}", fps));
+                    });
+            }
+            UIState::Log { text } => {
+                egui::Window::new("Log")
+                    .fixed_pos(Pos2::new(1., 1.))
+                    .show(egui_ctx, |ui| {
+                        for event in text.split('\n') {
+                            ui.label(event);
+                        }
+                    });
             }
         }
         Ok(())
@@ -162,13 +181,11 @@ impl egui_tetra::State<anyhow::Error> for Game {
                         items: get_player_items(&self.world)?,
                     }
                 }
-                PlayerAction::CloseInventory => {
-                    self.ui_state = UIState::No;
-                }
                 PlayerAction::PickUpItem => {
-                    let mut bind_player =
-                        self.world.query::<(&Player, &Position, &mut Inventory)>();
-                    let (e, (_, player_pos, inventory)) = bind_player
+                    let mut bind_player = self
+                        .world
+                        .query::<(&Player, &Position, &mut Inventory, &mut Log)>();
+                    let (_, (_, player_pos, inventory, log)) = bind_player
                         .into_iter()
                         .next()
                         .expect("Персонаж потерялся. Как так?");
@@ -177,6 +194,7 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     let mut cmd = CommandBuffer::new();
                     for (e, (item, pos)) in items {
                         if *pos == *player_pos {
+                            log.write(&*format!("Picked up {}", item.name.clone()));
                             inventory.0.push(item.clone());
                             cmd.despawn(e);
                             break;
@@ -187,6 +205,19 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     cmd.run_on(&mut self.world);
                     self.is_paused = false;
                     self.is_needed_redraw = true;
+                }
+                PlayerAction::OpenLog => {
+                    let mut bind_player = self.world.query::<(&Player, &Log)>();
+                    let (_, (_, log)) = bind_player
+                        .into_iter()
+                        .next()
+                        .expect("Персонаж потерялся. Как так?");
+                    self.ui_state = UIState::Log {
+                        text: log.0.clone(),
+                    }
+                }
+                PlayerAction::CloseLog | PlayerAction::CloseInventory => {
+                    self.ui_state = UIState::No;
                 }
                 _ => {}
             }
@@ -255,20 +286,13 @@ impl Game {
 }
 
 pub fn main() -> anyhow::Result<()> {
-    match ContextBuilder::new("S", 500, 500)
+    ContextBuilder::new("S", 500, 500)
         .quit_on_escape(true)
         .resizable(true)
         .show_mouse(true)
         .grab_mouse(false)
         .key_repeat(true)
-        //      .timestep(tetra::time::Timestep::Fixed(20.))
         .build()?
-        .run(|ctx| Ok(StateWrapper::new(Game::new(ctx)?)))
-    {
-        Ok(_) => {}
-        Err(e) => {
-            println!("{}", e); //FIXME: Вот так вот, надо выводить сообщения об ошибках до того как ебучий SDL крашнется из-за каких-то косяков в их деструкторе.
-        }
-    }
+        .run(|ctx| Ok(StateWrapper::new(Game::new(ctx)?)))?;
     Ok(())
 }

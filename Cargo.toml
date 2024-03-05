@@ -16,6 +16,7 @@ egui-tetra = { git = "https://github.com/Nuxssss/egui-tetra", rev = "931ed05" }
 anyhow = "*"
 libc = "0.2.149"
 rationals = { path = "./lib/rationals" }
+thiserror = "1.0.57"
 
 [profile.release]
 strip = true
