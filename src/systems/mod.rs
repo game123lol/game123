@@ -47,9 +47,10 @@ impl WorldSystem {
 }
 
 impl GameSystem {
-    pub fn run(&self, game: &mut Game, ctx: &mut Context) -> std::result::Result<(), error::Error> {
+    pub fn run(&self, game: &mut Game, ctx: &mut Context) -> anyhow::Result<()> {
         match self {
-            GameSystem::InputSystem => run_input_system(game, ctx),
+            GameSystem::InputSystem => run_input_system(game, ctx)?,
         }
+        Ok(())
     }
 }

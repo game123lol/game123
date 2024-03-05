@@ -15,6 +15,16 @@ use crate::{
 /// Ожидается, что она должна встречаться только один раз в игре.
 pub struct Player;
 
+/// Компонент, содержащий историю событий от лица сущности, с которой они происходили.
+/// События записаны в текстовом представлении, отделены переносом строки
+pub struct Log(pub String);
+
+impl Log {
+    pub fn write(&mut self, event: &str) {
+        self.0.push_str(event);
+    }
+}
+
 pub struct Inventory(pub Vec<Item>);
 
 type PlayerType = (
@@ -25,6 +35,7 @@ type PlayerType = (
     Mob,
     MapMemory,
     Inventory,
+    Log,
 );
 
 pub fn new_player() -> PlayerType {
@@ -36,6 +47,7 @@ pub fn new_player() -> PlayerType {
         Mob,
         MapMemory::new(),
         Inventory(Vec::new()),
+        Log("".to_owned()),
     )
 }
 
