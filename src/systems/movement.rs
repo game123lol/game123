@@ -5,7 +5,7 @@ use crate::{components::Position, map::WorldMap, need_components, Direction, Mob
 
 pub struct WantsMove(pub Direction);
 
-const fn dir_to_vec2(dir: &Direction) -> Vec2<i32> {
+pub const fn dir_to_vec2(dir: &Direction) -> Vec2<i32> {
     match dir {
         Direction::Up => Vec2::new(0, -1),
         Direction::Down => Vec2::new(0, 1),
@@ -34,6 +34,7 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
         .collect::<Vec<_>>();
     next_steps.dedup_by(|a, b| a.1 == b.1);
     for (e, (Position(pos), _)) in movables.iter() {
+        cmd.remove_one::<WantsMove>(e);
         // Если в потенциально занятых позициях есть сущность e
         if let Some((_, step)) = next_steps.iter().find(|a| a.0 == e.id()) {
             // И позиция, куда она хочет идти, занята мобом

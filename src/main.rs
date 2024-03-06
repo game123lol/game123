@@ -17,7 +17,7 @@ use player::{get_player_items, new_player, Inventory, Log, Player};
 use resources::Resources;
 use std::{collections::HashMap, env, sync::Arc};
 use systems::{
-    movement::WantsMove,
+    movement::{dir_to_vec2, WantsMove},
     render::{run_render_system, Renderable},
     GameSystem, WorldSystem,
 };
@@ -169,14 +169,26 @@ impl egui_tetra::State<anyhow::Error> for Game {
     fn update(&mut self, ctx: &mut Context, _egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
         if self.is_paused {
             match self.next_action {
-                PlayerAction::Move(dest) => {
-                    let mut bind = self.world.query::<(&Player,)>();
-                    let (e, _) = bind
+                PlayerAction::Move(dir) => {
+                    let mut bind = self.world.query::<(&Player, &Position)>();
+                    let (e, (_, Position(pos))) = bind
                         .into_iter()
                         .next()
                         .expect("Персонаж потерялся. Как так?");
+                    let pos = *pos;
                     drop(bind);
-                    self.world.insert(e, (WantsMove(dest),))?;
+                    let mut mobs = self.world.query::<(&Mob, &Position)>();
+                    let mut cmd = CommandBuffer::new();
+                    if mobs
+                        .iter()
+                        .any(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec2(&dir))
+                    {
+                        dbg!("atak!!!");
+                    } else {
+                        cmd.insert(e, (WantsMove(dir),));
+                    }
+                    drop(mobs);
+                    cmd.run_on(&mut self.world);
                     self.is_paused = false;
                     self.is_needed_redraw = true;
                 }
