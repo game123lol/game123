@@ -19,6 +19,9 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
       	version = "0.1.0";
       	src = ./.; # the folder with the cargo.toml
       	cargoLock.lockFile = ./Cargo.lock;
+        cargoLock.outputHashes = {
+         "egui-tetra-0.3.0" = "sha256-jbV1u97pO+2Ama1VKtyXmB2FtDmEmldYgNi5TPVmvmc=";
+        };
         buildInputs = with pkgs; [
           SDL2
           cmake
