@@ -29,7 +29,7 @@ enum Direction {
     Right,
 }
 
-pub fn run_fov_compute_system(world: &World, _ctx: &tetra::Context) -> super::Result {
+pub fn run_fov_compute_system(world: &World) -> super::Result {
     let mut query = world.query::<(&mut WorldMap,)>();
     let (_, (map,)) = query
         .iter()
@@ -142,12 +142,10 @@ fn cast(
                 sight_tiles.push(crds);
             }
             if let Some(is_prev_obstacle) = is_prev_obstacle {
-                if !is_prev_obstacle && is_obstacle {
-                    if row.depth < sight_radius as i32 {
-                        let mut next_row = row.next();
-                        next_row.slope.1 = slope(depth, col);
-                        row_stack.push(next_row);
-                    }
+                if !is_prev_obstacle && is_obstacle && row.depth < sight_radius as i32 {
+                    let mut next_row = row.next();
+                    next_row.slope.1 = slope(depth, col);
+                    row_stack.push(next_row);
                 }
                 if !is_obstacle && is_prev_obstacle {
                     row.slope.0 = slope(depth, col);

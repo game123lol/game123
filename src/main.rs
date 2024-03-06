@@ -7,16 +7,17 @@ mod systems;
 mod tests;
 use components::Position;
 use egui_tetra::{
-    egui::{self, Pos2, Vec2},
+    egui::{self, Pos2},
     StateWrapper,
 };
-use hecs::{CommandBuffer, Entity, World};
+use hecs::{CommandBuffer, World};
 use items::{Item, Property};
 use map::WorldMap;
 use player::{get_player_items, new_player, Inventory, Log, Player};
 use resources::Resources;
 use std::{collections::HashMap, env, sync::Arc};
 use systems::{
+    health::{Damage, DummyHealth},
     movement::{dir_to_vec2, WantsMove},
     render::{run_render_system, Renderable},
     GameSystem, WorldSystem,
@@ -26,6 +27,8 @@ use tetra::{
     input::Key,
     window, Context, ContextBuilder,
 };
+
+use crate::systems::health::WantsAttack;
 
 type GameSystems = Vec<GameSystem>;
 type WorldSystems = Vec<WorldSystem>;
@@ -133,7 +136,7 @@ impl egui_tetra::State<anyhow::Error> for Game {
             }
             UIState::No => {}
             UIState::Debug => {
-                let fps = tetra::time::get_fps(&ctx);
+                let fps = tetra::time::get_fps(ctx);
                 egui::Window::new("Debug")
                     .fixed_pos(Pos2::new(1., 1.))
                     .show(egui_ctx, |ui| {
@@ -179,11 +182,11 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     drop(bind);
                     let mut mobs = self.world.query::<(&Mob, &Position)>();
                     let mut cmd = CommandBuffer::new();
-                    if mobs
+                    if let Some((target, _)) = mobs
                         .iter()
-                        .any(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec2(&dir))
+                        .find(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec2(&dir))
                     {
-                        dbg!("atak!!!");
+                        cmd.insert(e, (WantsAttack(Damage(1), target),));
                     } else {
                         cmd.insert(e, (WantsMove(dir),));
                     }
@@ -210,7 +213,7 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     let mut cmd = CommandBuffer::new();
                     for (e, (item, pos)) in items {
                         if *pos == *player_pos {
-                            log.write(&*format!("Picked up {}", item.name.clone()));
+                            log.write(&format!("Picked up {}", item.name.clone()));
                             inventory.0.push(item.clone());
                             cmd.despawn(e);
                             break;
@@ -241,9 +244,13 @@ impl egui_tetra::State<anyhow::Error> for Game {
                 system.run(self, ctx)?
             }
         } else {
+            let now = std::time::Instant::now();
             for system in self.world_systems.iter() {
-                system.run(&mut self.world, ctx)?
+                system.run(&mut self.world)?
             }
+            let elapsed = now.elapsed();
+            println!("Elapsed: {:.2?}", elapsed);
+
             self.is_paused = true;
         }
         Ok(())
@@ -268,6 +275,7 @@ impl Game {
             WorldSystem::Move,
             WorldSystem::FovCompute,
             WorldSystem::Memory,
+            WorldSystem::Attack,
         ];
         let resources = Resources::load(ctx, &assets_path);
         let mut world = World::new();
@@ -281,6 +289,7 @@ impl Game {
             Position(tetra::math::Vec2::new(10, 10)),
             Renderable(Arc::from("nettle")),
             Mob,
+            DummyHealth(3),
         );
         world.spawn(nettle);
         let scaler = ScreenScaler::new(

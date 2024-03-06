@@ -2,6 +2,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -33,12 +34,12 @@ pub struct SpriteConfig {
 #[derive(Debug)]
 pub struct Sprite {
     pub rect: Rectangle,
-    pub texture: Arc<Texture>,
+    pub texture: Rc<Texture>,
 }
 
 pub struct Resources {
     pub sprites: BTreeMap<Arc<str>, Sprite>,
-    pub textures: Vec<Arc<Texture>>,
+    pub textures: Vec<Rc<Texture>>,
 }
 
 impl Resources {
@@ -58,7 +59,7 @@ impl Resources {
         let mut textures = Vec::new();
         let mut sprites = BTreeMap::new();
         for texture_config in config.textures.iter() {
-            let texture = Arc::new(
+            let texture = Rc::new(
                 Texture::new(ctx, assets_path.join(texture_config.source_file.clone())).unwrap(),
             );
             textures.push(texture.clone());

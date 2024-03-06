@@ -32,12 +32,12 @@ pub fn run_input_system(game: &mut Game, ctx: &mut tetra::Context) -> InputSyste
                     game.next_action = val.to_owned();
                 }
             }
-            UIState::Inventory { items: _ } => {
+            UIState::Inventory { .. } => {
                 if let Some(val) = get_dialog(game, "inventory")?.get(key) {
                     game.next_action = val.to_owned();
                 }
             }
-            UIState::Log { text } => {
+            UIState::Log { .. } => {
                 if let Some(val) = get_dialog(game, "log")?.get(key) {
                     game.next_action = val.to_owned();
                     //TODO: Код всё равно дублируется

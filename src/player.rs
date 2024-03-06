@@ -21,7 +21,7 @@ pub struct Log(pub String);
 
 impl Log {
     pub fn write(&mut self, event: &str) {
-        self.0.push_str(event);
+        self.0.push_str((event.to_owned() + "\n").as_str());
     }
 }
 

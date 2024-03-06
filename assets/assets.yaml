@@ -35,4 +35,12 @@ textures:
     - 0
     - 1
     name: cobblestone
-
+- source_file: mobs.png
+  sprite_size:
+  - 16
+  - 20
+  sprites:
+  - coords:
+    - 0
+    - 0
+    name: nettle

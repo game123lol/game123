@@ -43,7 +43,7 @@ impl Map for MapMemory {
     type Chunk = MemoryChunk;
 }
 
-pub fn run_memory_system(world: &hecs::World, _ctx: &tetra::Context) -> super::Result {
+pub fn run_memory_system(world: &hecs::World) -> super::Result {
     let mut query = world.query::<(&Player, &Position, &Sight, &mut MapMemory)>();
     let (_, (_, Position(cam_pos), Sight(_, sight_tiles), map_memory)) =
         query.iter().next().ok_or(need_components!(
