@@ -7,16 +7,16 @@
 
 Запустить на NixOS:
 ```
-nix run github:Nuxssss/game123
+nix run github:game123lol/game123
 ```
 Запустить при помощи nix на другом дистрибутиве linux:
 ```
 nix run --override-input nixpkgs nixpkgs/nixos-23.05 --impure github:guibou/nixGL -- \
-  nix run github:Nuxssss/game123
+  nix run github:game123lol/game123
 ```
 Сборка из исходного кода:
 ```
-git clone https://github.com/Nuxssss/game123
+git clone https://github.com/game123lol/game123
 cd game123
 cargo run --release
 ```
