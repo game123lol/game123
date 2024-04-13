@@ -284,9 +284,9 @@ impl Game {
         world.spawn(new_player());
         let mut item = Item::new("thing".into(), "item".into());
         item.add_props(&[("huy".into(), Property::Marker)]);
-        world.spawn(item.to_map_entity(2, 2));
+        world.spawn(item.to_map_entity(2, 2, 0));
         let nettle = (
-            Position(tetra::math::Vec2::new(10, 10)),
+            Position(tetra::math::Vec3::new(10, 10, 0)),
             Renderable(Arc::from("nettle")),
             Mob,
             DummyHealth(3),

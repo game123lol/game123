@@ -2,7 +2,7 @@
 /// если она находится на карте, или же она должна находиться в чьём-нибудь инвентаре.
 use std::{collections::HashMap, sync::Arc};
 
-use tetra::math::Vec2;
+use tetra::math::Vec3;
 
 use crate::{
     components::{Name, Position},
@@ -37,14 +37,19 @@ impl Item {
             self.properties.insert(prop_name.clone(), prop_val.clone());
         }
     }
-    pub fn to_map_entity(self, pos_x: i32, pos_y: i32) -> (Renderable, Item, Name, Position) {
+    pub fn to_map_entity(
+        self,
+        pos_x: i32,
+        pos_y: i32,
+        pos_z: i32,
+    ) -> (Renderable, Item, Name, Position) {
         let name = self.name.clone();
         let sprite_name = self.sprite_name.clone();
         (
             Renderable(Arc::from(sprite_name.as_str())),
             self,
             Name(Arc::from(name.as_str())),
-            Position(Vec2::new(pos_x, pos_y)),
+            Position(Vec3::new(pos_x, pos_y, pos_z)),
         )
     }
 }

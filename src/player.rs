@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use hecs::World;
-use tetra::math::Vec2;
+use tetra::math::Vec3;
 
 use crate::{
     components::Position,
@@ -40,8 +40,8 @@ type PlayerType = (
 
 pub fn new_player() -> PlayerType {
     (
-        Position(Vec2::new(1, 1)),
-        Sight(50, BTreeSet::new()),
+        Position(Vec3::new(1, 1, 0)),
+        Sight(5, BTreeSet::new()),
         Renderable(Arc::from("person")),
         Player,
         Mob,

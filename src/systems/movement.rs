@@ -46,7 +46,7 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
                 }
             }
             // Иначе если на пути нет препятствия
-            if !map.get_obstacle_or_create(step.x, step.y) {
+            if !map.get_obstacle_or_create(step.x, step.y, step.z) {
                 // То двигать
                 *pos = *step;
             }
