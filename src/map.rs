@@ -125,15 +125,15 @@ impl Chunk {
         );
         let wall_tile = Arc::new(Tile::new("wall", "wall"));
         let empty_tile = Arc::new(Tile::new("empty", "empty"));
-        for _ in 0..size.x {
+        for z in 0..size.z {
             for _ in 0..size.y {
-                for _ in 0..size.z {
-                    if rnd.read::<u32>() % 300 == 0 {
+                for x in 0..size.x {
+                    if z < 7 || (z == 7 && rnd.read::<u32>() % 300 == 0) {
                         tiles.push(wall_tile.clone());
                         obstacles.push(true);
                     } else {
                         tiles.push(empty_tile.clone());
-                        obstacles.push(false)
+                        obstacles.push(false);
                     }
                 }
             }

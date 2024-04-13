@@ -167,11 +167,10 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
             (100.235 * z as f32).abs() % 1.,
             (100.345 * z as f32).abs() % 1.,
         );
-        if z != 0 {
-            params.color = z_color.with_alpha(0.3);
-        }
         if chunk.obstacles[idx] {
             params.color = z_color.with_alpha(1.);
+        } else {
+            params.color = z_color.with_alpha(0.1);
         }
 
         if let Some(fallback_sprite) = fallback_sprite {
@@ -180,6 +179,8 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
                 .draw_region(ctx, fallback_sprite.rect, params.clone());
         }
         sprite.texture.draw_region(ctx, sprite.rect, params.clone());
+
+        params.color = Color::WHITE;
 
         if let Some(renderables) = ren_map.get(&(x_real, y_real, z_real)) {
             for Renderable(name) in renderables {

@@ -56,18 +56,18 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
     sight_tiles.insert((0, 0, 0));
 
     let dirs = [
-        // Direction::Up,
-        // Direction::Left,
-        // Direction::Down,
-        // Direction::Right,
+        Direction::Up,
+        Direction::Left,
+        Direction::Down,
+        Direction::Right,
         Direction::Forward,
-        // Direction::Back,
+        Direction::Back,
     ];
-    let chunks_depth = (*sight_radius / 15 + 3) as i32;
+    let chunks_depth = (*sight_radius / 15 + 3 + 10) as i32;
     let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y, cam_pos.z);
-    for i in -chunks_depth..chunks_depth {
-        for j in -chunks_depth..chunks_depth {
-            for k in -chunks_depth..chunks_depth {
+    for i in -chunks_depth..=chunks_depth {
+        for j in -chunks_depth..=chunks_depth {
+            for k in -chunks_depth..=chunks_depth {
                 map.get_chunk_or_create(
                     current_chunk.0 + i,
                     current_chunk.1 + j,
@@ -161,43 +161,52 @@ fn cast(
         |pos: (i32, i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y, pos.2 + cam_pos.z);
     while let Some(rect) = rect_stack.pop() {
         let (depth, (x1, y1, x2, y2)) = rect.tiles();
-        let mut is_obstacle_on_row = false;
         let mut is_obstacle_on_prev_row: Option<bool> = None;
         let mut rect = rect.clone(); // Прямоугольник, который может быть продолжен или прерван препятствием
         for y in y1..=y2 {
+            let mut is_obstacle_on_row = false;
             let mut is_prev_x_obstacle: Option<bool> = None;
 
+            let mut str_rect = rect.next();
             for x in x1..=x2 {
-                let mut next_rect = rect.next();
+                let (slope_x, slope_y) = slope(depth, x, y);
+                str_rect.slope.y1 = slope_y.sub(ConstRational::new(1, 2));
+                str_rect.slope.y2 = slope_y.add(ConstRational::new(1, 2));
                 let radio = ((x * x + y * y + depth * depth) as f64).sqrt();
                 let in_sight_radius = radio <= 1. + sight_radius as f64;
 
                 let crds = transform(dir, x, y, depth);
                 let (x_crd, y_crd, z_crd) = shift_back(crds);
                 let (ch_x, ch_y, ch_z) = WorldMap::xy_chunk(x_crd, y_crd, z_crd);
+                // dbg!(ch_x, ch_y, ch_z);
                 let chunk_mutex = map.get_chunk(ch_x, ch_y, ch_z).unwrap();
                 let chunk = chunk_mutex.lock().unwrap();
                 let real_crd = WorldMap::xy_index_chunk(x_crd, y_crd, z_crd);
-                let is_obstacle = chunk.obstacles[real_crd];
+                let is_obstacle = chunk.obstacles[real_crd] || !in_sight_radius;
+                is_obstacle_on_row = is_obstacle_on_row || is_obstacle;
                 if (is_obstacle || is_symmetric(&rect, x, y)) && in_sight_radius {
                     sight_tiles.push(crds);
                 }
-                let (slope_x, slope_y) = slope(depth, x, y);
                 if let Some(is_prev_obstacle) = is_prev_x_obstacle {
-                    if !is_prev_obstacle && is_obstacle && rect.depth < sight_radius as i32 {
+                    if !is_prev_obstacle && is_obstacle && in_sight_radius {
                         // Если мы после пустого тайла встречаем стену, то режем
-                        next_rect.slope.x2 = slope_x;
-                        next_rect.slope.y1 = slope_y.sub(ConstRational::new(1, 2));
-                        next_rect.slope.y2 = slope_y.add(ConstRational::new(1, 2));
-                        is_obstacle_on_row = true;
-                        rect_stack.push(next_rect);
+                        let mut new_str_rect = str_rect.next();
+                        new_str_rect.slope.x2 = slope_x;
+                        rect_stack.push(new_str_rect.clone());
                     }
-                    if !is_obstacle && is_prev_obstacle {}
+                    if !is_obstacle && is_prev_obstacle {
+                        str_rect.slope.x1 = slope_x;
+                        str_rect.slope.y1 = slope_y.sub(ConstRational::new(1, 2));
+                        str_rect.slope.y2 = slope_y.add(ConstRational::new(1, 2));
+                    }
                 }
                 is_prev_x_obstacle = Some(is_obstacle);
             }
 
-            if is_obstacle_on_row && !is_obstacle_on_prev_row.is_some_and(|x| x) {
+            if is_obstacle_on_row
+                && is_obstacle_on_prev_row.is_some_and(|x| !x)
+                && rect.depth < sight_radius as i32
+            {
                 // Если на этой строке нашлось препятствие, то прошлый прямоугольник обрезаем спереди и пушим
                 let mut new_rect = rect.next();
                 new_rect.slope.y2 = slope(depth, 1, y).1;
@@ -209,71 +218,10 @@ fn cast(
             }
             is_obstacle_on_prev_row = Some(is_obstacle_on_row);
         }
-        if !is_obstacle_on_prev_row.is_some_and(|x| x) && (rect.depth as f64) < sight_radius as f64
+        if is_obstacle_on_prev_row.is_some_and(|x| !x) && (rect.depth as f64) < sight_radius as f64
         {
             rect_stack.push(rect.next());
         }
     }
     sight_tiles
 }
-
-//fn cast(
-//    cam_pos: &Vec2<i32>,
-//    dir: &Direction,
-//    map: &WorldMap,
-//    sight_radius: u32,
-//) -> Vec<(i32, i32)> {
-//    let mut sight_tiles = Vec::new();
-//    let mut row_stack: Vec<Row> = Vec::new();
-//    let mut chunk_cache: Vec<((i32, i32), *const Mutex<Chunk>)> = Vec::new();
-//    row_stack.push(Row::new(
-//        1,
-//        (ConstRational::new(-1, 1), ConstRational::new(1, 1)),
-//    ));
-//    while let Some(row) = row_stack.pop() {
-//        let mut row = row;
-//        let shift_back = |pos: (i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y);
-//        let mut is_prev_obstacle: Option<bool> = None;
-//        let (depth, min_col, max_col) = row.clone().tiles();
-//        for col in min_col..=max_col {
-//            let hypotenuse = ((col * col + depth * depth) as f64).sqrt();
-//            let in_sight_radius = hypotenuse <= sight_radius as f64;
-//
-//            let crds = transform(dir, col, depth);
-//            let (x, y) = shift_back(crds);
-//            let (ch_x, ch_y) = WorldMap::xy_chunk(x, y);
-//            let chunk_mutex =
-//                if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y)) {
-//                    unsafe { chunk.as_ref().unwrap() }
-//                } else {
-//                    let link = map.get_chunk(ch_x, ch_y).unwrap();
-//                    chunk_cache.push(((ch_x, ch_y), link));
-//                    link
-//                };
-//            let chunk = chunk_mutex.lock().unwrap();
-//            let real_crd = WorldMap::xy_index_chunk(x, y);
-//            let is_obstacle = chunk.obstacles[real_crd];
-//            if (is_obstacle || is_symmetric(&row, col)) && in_sight_radius {
-//                sight_tiles.push(crds);
-//            }
-//            if let Some(is_prev_obstacle) = is_prev_obstacle {
-//                if !is_prev_obstacle && is_obstacle && row.depth < sight_radius as i32 {
-//                    let mut next_row = row.next();
-//                    next_row.slope.1 = slope(depth, col);
-//                    row_stack.push(next_row);
-//                }
-//                if !is_obstacle && is_prev_obstacle {
-//                    row.slope.0 = slope(depth, col);
-//                }
-//            }
-//            is_prev_obstacle = Some(is_obstacle);
-//        }
-//        if is_prev_obstacle.is_some()
-//            && !is_prev_obstacle.unwrap()
-//            && (row.depth as f64) < sight_radius as f64
-//        {
-//            row_stack.push(row.next());
-//        }
-//    }
-//    sight_tiles
-//}
