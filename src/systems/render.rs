@@ -142,35 +142,34 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         let is_visible = sight_positions.contains(&(x, y, z));
         let is_memorized = memory_chunk.map_or(false, |a| a.lock().unwrap().memorized[idx]);
 
-        if
-        // !is_visible &&
-        !is_memorized {
+        if !is_visible && !is_memorized {
             continue;
         }
 
         let mut params = DrawParams::new().position(position);
 
+        params.color = Color::rgb(
+            (100.545 * z as f32).abs() % 1.,
+            (100.235 * z as f32).abs() % 1.,
+            (100.345 * z as f32).abs() % 1.,
+        );
+
         if !is_visible && is_memorized {
-            params = params.color(Color::rgb8(128, 128, 128))
+            params.color.r = params.color.r / 2.;
+            params.color.g = params.color.g / 2.;
+            params.color.b = params.color.b / 2.;
         }
 
-        if !is_full && is_visible {
-            params.color = params.color.with_alpha(0.7);
-        }
+        // if !is_full && is_visible {
+        //     params.color = params.color.with_alpha(0.7);
+        // }
 
         // if is_border {
         //     params.color = params.color.with_green(0.1).with_blue(0.1);
         // }
 
-        let z_color = Color::rgb(
-            (100.545 * z as f32).abs() % 1.,
-            (100.235 * z as f32).abs() % 1.,
-            (100.345 * z as f32).abs() % 1.,
-        );
-        if chunk.obstacles[idx] {
-            params.color = z_color.with_alpha(1.);
-        } else {
-            params.color = z_color.with_alpha(0.1);
+        if !chunk.obstacles[idx] {
+            params.color = params.color.with_alpha(0.1);
         }
 
         if let Some(fallback_sprite) = fallback_sprite {

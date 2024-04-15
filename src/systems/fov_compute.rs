@@ -10,14 +10,12 @@ use crate::{
     player::Player,
 };
 
-use rationals::ConstRational;
-
 type Quad<T> = (T, T, T, T); //x1, y1, x2, y2
 
 #[derive(Clone, Debug)]
 struct Rect {
     depth: i32,
-    slope: Slope<ConstRational>,
+    slope: Slope<f64>,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -85,23 +83,15 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
 }
 
 impl Rect {
-    const fn new(depth: i32, slope: Slope<ConstRational>) -> Self {
+    const fn new(depth: i32, slope: Slope<f64>) -> Self {
         Rect { depth, slope }
     }
 
-    const fn tiles(&self) -> (i32, Quad<i32>) {
-        let x1 = self.slope.x1.mul(ConstRational::new(self.depth, 1)).floor();
-        let y1 = self.slope.y1.mul(ConstRational::new(self.depth, 1)).floor();
-        let x2 = self
-            .slope
-            .x2
-            .mul(ConstRational::new(self.depth, 1).add(ConstRational::new(1, 2)))
-            .floor();
-        let y2 = self
-            .slope
-            .y2
-            .mul(ConstRational::new(self.depth, 1).add(ConstRational::new(1, 2)))
-            .floor();
+    fn tiles(&self) -> (i32, Quad<i32>) {
+        let x1 = (self.slope.x1 * self.depth as f64).floor() as i32;
+        let y1 = (self.slope.y1 * self.depth as f64).floor() as i32;
+        let x2 = (self.slope.x2 * self.depth as f64 + 0.5).floor() as i32;
+        let y2 = (self.slope.y2 * self.depth as f64 + 0.5).floor() as i32;
 
         (self.depth, (x1, y1, x2, y2))
     }
@@ -110,19 +100,17 @@ impl Rect {
     }
 }
 
-pub const fn slope(depth: i32, x: i32, y: i32) -> (ConstRational, ConstRational) {
-    let x_slope = ConstRational::new(2 * x - 1, 2 * depth);
-    let y_slope = ConstRational::new(2 * y - 1, 2 * depth);
+pub fn slope(depth: i32, x: i32, y: i32) -> (f64, f64) {
+    let x_slope = (2. * x as f64 - 1.) / (2. * depth as f64);
+    let y_slope = (2. * y as f64 - 1.) / (2. * depth as f64);
     (x_slope, y_slope)
 }
 
-const fn is_symmetric(rect: &Rect, x: i32, y: i32) -> bool {
-    let x_symmetric = ConstRational::new(x, 1)
-        .ge(ConstRational::new(rect.depth, 1).mul(rect.slope.x1))
-        && ConstRational::new(x, 1).le(ConstRational::new(rect.depth, 1).mul(rect.slope.x2));
-    let y_symmetric = ConstRational::new(y, 1)
-        .ge(ConstRational::new(rect.depth, 1).mul(rect.slope.y1))
-        && ConstRational::new(y, 1).le(ConstRational::new(rect.depth, 1).mul(rect.slope.y2));
+fn is_symmetric(rect: &Rect, x: i32, y: i32) -> bool {
+    let x_symmetric = x as f64 >= rect.depth as f64 * rect.slope.x1
+        && x as f64 <= rect.depth as f64 * rect.slope.x2;
+    let y_symmetric = y as f64 >= rect.depth as f64 * rect.slope.y1
+        && y as f64 <= rect.depth as f64 * rect.slope.y2;
 
     x_symmetric && y_symmetric
 }
@@ -149,10 +137,10 @@ fn cast(
     let init_rect = Rect::new(
         1,
         Slope {
-            x1: ConstRational::new(-1, 1),
-            y1: ConstRational::new(-1, 1),
-            x2: ConstRational::new(1, 1),
-            y2: ConstRational::new(1, 1),
+            x1: -1.,
+            y1: -1.,
+            x2: 1.,
+            y2: 1.,
         },
     );
     rect_stack.push(init_rect);
@@ -170,8 +158,8 @@ fn cast(
             let mut str_rect = rect.next();
             for x in x1..=x2 {
                 let (slope_x, slope_y) = slope(depth, x, y);
-                str_rect.slope.y1 = slope_y.sub(ConstRational::new(1, 2));
-                str_rect.slope.y2 = slope_y.add(ConstRational::new(1, 2));
+                str_rect.slope.y1 = slope_y - 0.5;
+                str_rect.slope.y2 = slope_y + 0.5;
                 let radio = ((x * x + y * y + depth * depth) as f64).sqrt();
                 let in_sight_radius = radio <= 1. + sight_radius as f64;
 
@@ -195,9 +183,8 @@ fn cast(
                         rect_stack.push(new_str_rect.clone());
                     }
                     if !is_obstacle && is_prev_obstacle {
+                        // После препятствия выставляем начало скоса на прямоугольнике этой строки
                         str_rect.slope.x1 = slope_x;
-                        str_rect.slope.y1 = slope_y.sub(ConstRational::new(1, 2));
-                        str_rect.slope.y2 = slope_y.add(ConstRational::new(1, 2));
                     }
                 }
                 is_prev_x_obstacle = Some(is_obstacle);
@@ -220,6 +207,7 @@ fn cast(
         }
         if is_obstacle_on_prev_row.is_some_and(|x| !x) && (rect.depth as f64) < sight_radius as f64
         {
+            dbg!(&rect.next());
             rect_stack.push(rect.next());
         }
     }
