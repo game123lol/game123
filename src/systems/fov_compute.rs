@@ -61,7 +61,7 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
         Direction::Forward,
         Direction::Back,
     ];
-    let chunks_depth = (*sight_radius / 15 + 3 + 10) as i32;
+    let chunks_depth = (*sight_radius / 15 + 3) as i32;
     let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y, cam_pos.z);
     for i in -chunks_depth..=chunks_depth {
         for j in -chunks_depth..=chunks_depth {
@@ -88,10 +88,10 @@ impl Rect {
     }
 
     fn tiles(&self) -> (i32, Quad<i32>) {
-        let x1 = (self.slope.x1 * self.depth as f64).floor() as i32;
-        let y1 = (self.slope.y1 * self.depth as f64).floor() as i32;
-        let x2 = (self.slope.x2 * self.depth as f64 + 0.5).floor() as i32;
-        let y2 = (self.slope.y2 * self.depth as f64 + 0.5).floor() as i32;
+        let x1 = (self.slope.x1 * self.depth as f64 + 0.5).floor() as i32;
+        let y1 = (self.slope.y1 * self.depth as f64 + 0.5).floor() as i32;
+        let x2 = (self.slope.x2 * self.depth as f64 - 0.5).ceil() as i32;
+        let y2 = (self.slope.y2 * self.depth as f64 - 0.5).ceil() as i32;
 
         (self.depth, (x1, y1, x2, y2))
     }
@@ -100,10 +100,8 @@ impl Rect {
     }
 }
 
-pub fn slope(depth: i32, x: i32, y: i32) -> (f64, f64) {
-    let x_slope = (2. * x as f64 - 1.) / (2. * depth as f64);
-    let y_slope = (2. * y as f64 - 1.) / (2. * depth as f64);
-    (x_slope, y_slope)
+pub fn slope(depth: i32, col: f64) -> f64 {
+    (2. * col - 1.) / (2. * depth as f64)
 }
 
 fn is_symmetric(rect: &Rect, x: i32, y: i32) -> bool {
@@ -155,39 +153,57 @@ fn cast(
             let mut is_obstacle_on_row = false;
             let mut is_prev_x_obstacle: Option<bool> = None;
 
-            let mut str_rect = rect.next();
+            let mut str_rect = rect.clone();
+
+            if is_obstacle_on_prev_row.is_some_and(|x| x) && !is_obstacle_on_row {
+                // Если на прошлой строке были препятствия, а на этой - нет, обрезаем сзади прямоугольник и снова тянем
+                rect.slope.y1 = slope(depth, y as f64);
+            }
+            str_rect.slope.y1 = rect.slope.y1.max(slope(depth, y as f64 - 1.));
+            str_rect.slope.y2 = rect.slope.y2.min(slope(depth, y as f64 + 1.));
             for x in x1..=x2 {
-                let (slope_x, slope_y) = slope(depth, x, y);
-                str_rect.slope.y1 = slope_y - 0.5;
-                str_rect.slope.y2 = slope_y + 0.5;
                 let radio = ((x * x + y * y + depth * depth) as f64).sqrt();
                 let in_sight_radius = radio <= 1. + sight_radius as f64;
+                if !in_sight_radius {
+                    continue;
+                }
+                let slope_x = slope(depth, x as f64);
 
                 let crds = transform(dir, x, y, depth);
                 let (x_crd, y_crd, z_crd) = shift_back(crds);
                 let (ch_x, ch_y, ch_z) = WorldMap::xy_chunk(x_crd, y_crd, z_crd);
-                // dbg!(ch_x, ch_y, ch_z);
                 let chunk_mutex = map.get_chunk(ch_x, ch_y, ch_z).unwrap();
                 let chunk = chunk_mutex.lock().unwrap();
                 let real_crd = WorldMap::xy_index_chunk(x_crd, y_crd, z_crd);
-                let is_obstacle = chunk.obstacles[real_crd] || !in_sight_radius;
+                let is_obstacle = chunk.obstacles[real_crd];
                 is_obstacle_on_row = is_obstacle_on_row || is_obstacle;
-                if (is_obstacle || is_symmetric(&rect, x, y)) && in_sight_radius {
+
+                // Отправляем тайл в видимые, если он виден или это препятствие
+                if (is_obstacle || is_symmetric(&rect, x, y)) {
                     sight_tiles.push(crds);
                 }
-                if let Some(is_prev_obstacle) = is_prev_x_obstacle {
-                    if !is_prev_obstacle && is_obstacle && in_sight_radius {
-                        // Если мы после пустого тайла встречаем стену, то режем
-                        let mut new_str_rect = str_rect.next();
-                        new_str_rect.slope.x2 = slope_x;
-                        rect_stack.push(new_str_rect.clone());
-                    }
-                    if !is_obstacle && is_prev_obstacle {
-                        // После препятствия выставляем начало скоса на прямоугольнике этой строки
-                        str_rect.slope.x1 = slope_x;
-                    }
+
+                if is_prev_x_obstacle.is_some_and(|x| !x) && is_obstacle {
+                    // Если мы после пустого тайла встречаем стену, то режем справа и пушим
+                    let mut str_rect = str_rect.clone();
+                    str_rect.slope.x2 = slope_x;
+                    let new_str_rect = str_rect.next();
+                    rect_stack.push(new_str_rect.clone());
+                }
+                if !is_obstacle && is_prev_x_obstacle.is_some_and(|x| x) {
+                    // После препятствия выставляем начало скоса на прямоугольнике этой строки
+                    str_rect.slope.x1 = slope_x;
                 }
                 is_prev_x_obstacle = Some(is_obstacle);
+            }
+
+            if is_obstacle_on_row
+                && is_prev_x_obstacle.is_some_and(|x| !x)
+                && (rect.depth as f64) < sight_radius as f64
+            {
+                let new_str_rect = str_rect.next();
+
+                rect_stack.push(new_str_rect);
             }
 
             if is_obstacle_on_row
@@ -195,19 +211,15 @@ fn cast(
                 && rect.depth < sight_radius as i32
             {
                 // Если на этой строке нашлось препятствие, то прошлый прямоугольник обрезаем спереди и пушим
-                let mut new_rect = rect.next();
-                new_rect.slope.y2 = slope(depth, 1, y).1;
+                let mut rect = rect.clone();
+                rect.slope.y2 = slope(depth, y as f64);
+                let new_rect = rect.next();
                 rect_stack.push(new_rect);
-            }
-            if is_obstacle_on_prev_row.is_some_and(|x| x) && !is_obstacle_on_row {
-                // Если на прошлой строке были препятствия, а на этой - нет, обрезаем сзади прямоугольник и снова тянем
-                rect.slope.y1 = slope(depth, 1, y).1;
             }
             is_obstacle_on_prev_row = Some(is_obstacle_on_row);
         }
         if is_obstacle_on_prev_row.is_some_and(|x| !x) && (rect.depth as f64) < sight_radius as f64
         {
-            dbg!(&rect.next());
             rect_stack.push(rect.next());
         }
     }

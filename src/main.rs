@@ -66,9 +66,11 @@ impl UIConfig {
         let mut world_keys = HashMap::new();
 
         world_keys.insert(Key::H, PlayerAction::Move(Direction::Left));
-        world_keys.insert(Key::J, PlayerAction::Move(Direction::Down));
-        world_keys.insert(Key::K, PlayerAction::Move(Direction::Up));
+        world_keys.insert(Key::J, PlayerAction::Move(Direction::Back));
+        world_keys.insert(Key::K, PlayerAction::Move(Direction::Forward));
         world_keys.insert(Key::L, PlayerAction::Move(Direction::Right));
+        world_keys.insert(Key::U, PlayerAction::Move(Direction::Up));
+        world_keys.insert(Key::N, PlayerAction::Move(Direction::Down));
         world_keys.insert(Key::I, PlayerAction::OpenInventory);
         world_keys.insert(Key::E, PlayerAction::PickUpItem);
         world_keys.insert(Key::P, PlayerAction::OpenLog);
@@ -106,14 +108,12 @@ pub enum PlayerAction {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
-    Up,
-    Down,
+    Forward,
+    Back,
     Left,
     Right,
-    //UpLeft,
-    //UpRight,
-    //DownLeft,
-    //DownRight,
+    Up,
+    Down,
 }
 
 enum Action {

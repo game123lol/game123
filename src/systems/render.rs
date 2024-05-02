@@ -148,16 +148,17 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
 
         let mut params = DrawParams::new().position(position);
 
-        params.color = Color::rgb(
-            (100.545 * z as f32).abs() % 1.,
-            (100.235 * z as f32).abs() % 1.,
-            (100.345 * z as f32).abs() % 1.,
-        );
+        // params.color = Color::rgb(
+        //     (100.545 * z as f32).abs() % 1.,
+        //     (100.235 * z as f32).abs() % 1.,
+        //     (100.345 * z as f32).abs() % 1.,
+        // );
+        // params.color = Color::WHITE;
 
         if !is_visible && is_memorized {
-            params.color.r = params.color.r / 2.;
-            params.color.g = params.color.g / 2.;
-            params.color.b = params.color.b / 2.;
+            params.color.r = params.color.r / 3.;
+            params.color.g = params.color.g / 3.;
+            params.color.b = params.color.b / 3.;
         }
 
         // if !is_full && is_visible {
@@ -169,7 +170,7 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         // }
 
         if !chunk.obstacles[idx] {
-            params.color = params.color.with_alpha(0.1);
+            params.color = params.color.with_alpha(0.001);
         }
 
         if let Some(fallback_sprite) = fallback_sprite {
