@@ -35,6 +35,14 @@ textures:
     - 0
     - 1
     name: cobblestone
+  - coords:
+    - 1
+    - 1
+    name: wall
+  - coords:
+    - 2
+    - 1
+    name: empty
 - source_file: mobs.png
   sprite_size:
   - 16

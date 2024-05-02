@@ -1,16 +1,18 @@
 use hecs::{CommandBuffer, World};
-use tetra::math::Vec2;
+use tetra::math::{Vec2, Vec3};
 
 use crate::{components::Position, map::WorldMap, need_components, Direction, Mob};
 
 pub struct WantsMove(pub Direction);
 
-pub const fn dir_to_vec2(dir: &Direction) -> Vec2<i32> {
+pub const fn dir_to_vec2(dir: &Direction) -> Vec3<i32> {
     match dir {
-        Direction::Up => Vec2::new(0, -1),
-        Direction::Down => Vec2::new(0, 1),
-        Direction::Left => Vec2::new(-1, 0),
-        Direction::Right => Vec2::new(1, 0),
+        Direction::Forward => Vec3::new(0, -1, 0),
+        Direction::Back => Vec3::new(0, 1, 0),
+        Direction::Left => Vec3::new(-1, 0, 0),
+        Direction::Right => Vec3::new(1, 0, 0),
+        Direction::Up => Vec3::new(0, 0, 1),
+        Direction::Down => Vec3::new(0, 0, -1),
     }
 }
 
@@ -46,7 +48,7 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
                 }
             }
             // Иначе если на пути нет препятствия
-            if !map.get_obstacle_or_create(step.x, step.y) {
+            if !map.get_obstacle_or_create(step.x, step.y, step.z) {
                 // То двигать
                 *pos = *step;
             }
