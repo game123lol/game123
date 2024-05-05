@@ -1,7 +1,7 @@
-use std::{collections::BTreeSet, path::Components, sync::Mutex};
+use std::{collections::HashSet, sync::Mutex};
 
 use hecs::World;
-use tetra::math::{Vec2, Vec3};
+use tetra::math::Vec3;
 
 use crate::{
     components::Position,
@@ -28,8 +28,9 @@ struct Slope<T> {
 
 /// Компонент, означающий, что сущность с этим компонентом имеет поле зрения.
 /// Он имеет в себе радиус поля зрения и множество координат, которые сущность видит.
-pub struct Sight(pub u32, pub BTreeSet<(i32, i32, i32)>);
+pub struct Sight(pub u32, pub HashSet<(i32, i32, i32)>);
 
+#[derive(Clone, Debug, Copy)]
 enum Direction {
     Up,
     Down,
@@ -74,11 +75,23 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
             }
         }
     }
-    sight_tiles.extend(
-        dirs.iter()
-            .flat_map(|dir| cast(cam_pos, dir, map, *sight_radius))
-            .collect::<Vec<(i32, i32, i32)>>(),
-    );
+    let sight_tiles_mutex = Mutex::new(sight_tiles);
+    std::thread::scope(|s| {
+        for dir in dirs.iter() {
+            let handle = s.spawn({
+                let sight_radius = *sight_radius;
+                let cam_pos = *cam_pos;
+                let map = &*map;
+                let sight_tiles_mutex = &sight_tiles_mutex;
+                move || {
+                    let vec = cast(&cam_pos, &dir, &map, sight_radius);
+                    let mut sight_tiles = sight_tiles_mutex.lock().unwrap();
+                    sight_tiles.extend(vec);
+                }
+            });
+            handle.join().unwrap();
+        }
+    });
     Ok(())
 }
 
@@ -143,6 +156,8 @@ fn cast(
     );
     rect_stack.push(init_rect);
 
+    let mut prev_chunk_mutex: Option<(&Mutex<Chunk>, i32, i32, i32)> = None;
+
     let shift_back =
         |pos: (i32, i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y, pos.2 + cam_pos.z);
     while let Some(rect) = rect_stack.pop() {
@@ -172,14 +187,26 @@ fn cast(
                 let crds = transform(dir, x, y, depth);
                 let (x_crd, y_crd, z_crd) = shift_back(crds);
                 let (ch_x, ch_y, ch_z) = WorldMap::xy_chunk(x_crd, y_crd, z_crd);
-                let chunk_mutex = map.get_chunk(ch_x, ch_y, ch_z).unwrap();
+                let chunk_mutex = match prev_chunk_mutex {
+                    Some((mutex, p_ch_x, p_ch_y, p_ch_z))
+                        if p_ch_x == ch_x && p_ch_y == ch_y && p_ch_z == ch_z =>
+                    {
+                        mutex
+                    }
+                    _ => {
+                        let new_chunk_mutex = map.get_chunk(ch_x, ch_y, ch_z).unwrap();
+                        prev_chunk_mutex = Some((new_chunk_mutex, ch_x, ch_y, ch_z));
+                        new_chunk_mutex
+                    }
+                };
+
                 let chunk = chunk_mutex.lock().unwrap();
                 let real_crd = WorldMap::xy_index_chunk(x_crd, y_crd, z_crd);
                 let is_obstacle = chunk.obstacles[real_crd];
                 is_obstacle_on_row = is_obstacle_on_row || is_obstacle;
 
                 // Отправляем тайл в видимые, если он виден или это препятствие
-                if (is_obstacle || is_symmetric(&rect, x, y)) {
+                if is_obstacle || is_symmetric(&rect, x, y) {
                     sight_tiles.push(crds);
                 }
 

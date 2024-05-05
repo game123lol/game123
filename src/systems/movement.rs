@@ -1,5 +1,5 @@
 use hecs::{CommandBuffer, World};
-use tetra::math::{Vec2, Vec3};
+use tetra::math::Vec3;
 
 use crate::{components::Position, map::WorldMap, need_components, Direction, Mob};
 

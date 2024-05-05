@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use tetra::math::Vec3;
 
 use {
     random::Source,
     std::{
-        collections::BTreeMap,
         sync::{Arc, Mutex},
         time::UNIX_EPOCH,
     },
@@ -81,13 +82,13 @@ pub trait Map {
 }
 
 pub struct WorldMap {
-    chunks: BTreeMap<(i32, i32, i32), Mutex<Chunk>>,
+    pub chunks: HashMap<(i32, i32, i32), Mutex<Chunk>>,
 }
 
 impl WorldMap {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         WorldMap {
-            chunks: BTreeMap::new(),
+            chunks: HashMap::new(),
         }
     }
     pub fn get_obstacle_or_create(&mut self, x: i32, y: i32, z: i32) -> bool {
@@ -126,11 +127,11 @@ impl Chunk {
 
         let is_sphere_in_chunk = rnd.read::<u32>() % 5 == 0;
         let in_sphere = {
-            let radius = rnd.read::<u32>() % 2 + 3;
-            let x_crd = rnd.read::<u32>() % (15 - radius) + radius + 1;
-            let y_crd = rnd.read::<u32>() % (15 - radius) + radius + 1;
-            let z_crd = rnd.read::<u32>() % 3 + 6;
-            move |x: u32, y: u32, z: u32| {
+            let radius = rnd.read::<u16>() as i32 % 2 + 3;
+            let x_crd = rnd.read::<u16>() as i32 % (15 - radius) + radius + 1;
+            let y_crd = rnd.read::<u16>() as i32 % (15 - radius) + radius + 1;
+            let z_crd = rnd.read::<u16>() as i32 % 3 + 6;
+            move |x: i32, y: i32, z: i32| {
                 (((x - x_crd) * (x - x_crd) + (y - y_crd) * (y - y_crd) + (z - z_crd) * (z - z_crd))
                     as f64)
                     .sqrt()

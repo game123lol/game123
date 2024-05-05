@@ -159,12 +159,16 @@ impl egui_tetra::State<anyhow::Error> for Game {
         let (w, h) = window::get_size(ctx);
         self.scaler.set_outer_size(w, h);
         if self.is_needed_redraw && self.is_paused {
+            let now = std::time::Instant::now();
+
             graphics::set_canvas(ctx, self.scaler.canvas());
             graphics::clear(ctx, Color::rgb(0., 0., 0.));
             run_render_system(self, ctx).unwrap();
             graphics::reset_canvas(ctx);
             graphics::clear(ctx, Color::rgb(0., 0., 0.));
             self.is_needed_redraw = false;
+            let elapsed = now.elapsed();
+            println!("Render elapsed: {:.2?}", elapsed);
         }
         self.scaler.draw(ctx);
         Ok(())
@@ -249,7 +253,7 @@ impl egui_tetra::State<anyhow::Error> for Game {
                 system.run(&mut self.world)?
             }
             let elapsed = now.elapsed();
-            println!("Elapsed: {:.2?}", elapsed);
+            println!("World systems elapsed: {:.2?}", elapsed);
 
             self.is_paused = true;
         }

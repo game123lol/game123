@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use crate::map::{Map, WorldMap};
 #[test]
 fn map_index() {
     //    let ch_idx = WorldMap::xy_index_chunk(0, 0);

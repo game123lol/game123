@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use hecs::World;
 use tetra::math::Vec3;
@@ -41,7 +41,7 @@ type PlayerType = (
 pub fn new_player() -> PlayerType {
     (
         Position(Vec3::new(1, 1, 0)),
-        Sight(50, BTreeSet::new()),
+        Sight(50, HashSet::new()),
         Renderable(Arc::from("person")),
         Player,
         Mob,

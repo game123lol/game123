@@ -4,7 +4,7 @@ use std::{
 };
 
 use tetra::{
-    graphics::{mesh::Mesh, Color, DrawParams},
+    graphics::{Color, DrawParams},
     math::Vec2,
     Context,
 };
@@ -15,7 +15,6 @@ use crate::{
     map::{Chunk, Map, WorldMap},
     need_components,
     player::Player,
-    resources::Sprite,
     Game, Mob,
 };
 
@@ -93,9 +92,8 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         .map(|n| xy_tile(n, render_radius))
         .filter(move |(x, y, z)| {
             ((x * x + y * y + z * z) as f64).sqrt() < 1. + render_radius as f64
-        }); //плоское ради совместимости
-
-    // let mut chunk_cache: Vec<((i32, i32), Option<&Mutex<Chunk>>)> = Vec::new();
+        });
+    let mut prev_chunk_mutex: Option<(&Mutex<Chunk>, i32, i32, i32)> = None;
 
     for (x, y, z) in render_coords {
         let position = Vec2::new(w as f32 / 2., h as f32 / 2.) //центр экрана
@@ -109,25 +107,29 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         let y_real = y + cam_pos.y;
         let z_real = z + cam_pos.z;
         let (ch_x, ch_y, ch_z) = WorldMap::xy_chunk(x_real, y_real, z_real);
-        // let chunk = if let Some((_, chunk)) = chunk_cache.iter().rev().find(|a| a.0 == (ch_x, ch_y))
-        // {
-        //     *chunk
-        // } else {
-        //     let link = map.get_chunk(ch_x, ch_y, ch_z);
-        //     chunk_cache.push(((ch_x, ch_y), link));
-        //     link
-        // };
-        let chunk = map.get_chunk(ch_x, ch_y, ch_z);
+        let chunk_mutex = match prev_chunk_mutex {
+            Some((mutex, p_ch_x, p_ch_y, p_ch_z))
+                if p_ch_x == ch_x && p_ch_y == ch_y && p_ch_z == ch_z =>
+            {
+                mutex
+            }
+            _ => {
+                let new_chunk_mutex = map.get_chunk(ch_x, ch_y, ch_z);
+                if new_chunk_mutex.is_none() {
+                    continue;
+                }
+                let new_chunk_mutex = new_chunk_mutex.unwrap();
+                prev_chunk_mutex = Some((new_chunk_mutex, ch_x, ch_y, ch_z));
+                new_chunk_mutex
+            }
+        };
 
-        if chunk.is_none() {
-            continue;
-        }
-        let chunk = chunk.unwrap().lock().unwrap();
+        let chunk = chunk_mutex.lock().unwrap();
         let memory_chunk = map_memory.get_chunk(ch_x, ch_y, ch_z);
         let idx = WorldMap::xy_index_chunk(x_real, y_real, z_real);
         // let is_border = idx < 15 || idx % 15 == 0;
         let tile = &chunk.tiles[idx];
-        let is_full = x <= 0 && 0 >= y || !chunk.obstacles[idx];
+        // let is_full = x <= 0 && 0 >= y || !chunk.obstacles[idx];
         let sprite = resources
             .sprites
             .get(tile.full_sprite)
