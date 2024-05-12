@@ -18,6 +18,7 @@ libc = "0.2.149"
 rationals = { path = "./lib/rationals" }
 thiserror = "1.0.57"
 serde_yaml = "0.9.32"
+pathfinding = "4.9.1"
 
 [profile.release]
 strip = true

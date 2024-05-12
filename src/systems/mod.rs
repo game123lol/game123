@@ -5,7 +5,7 @@ use crate::Game;
 
 use self::{
     fov_compute::run_fov_compute_system, health::run_attack_system, input::run_input_system,
-    memory::run_memory_system, movement::run_move_system,
+    memory::run_memory_system, movement::run_move_system, pathfinding::run_pathfinding_system,
 };
 
 pub mod error;
@@ -14,6 +14,7 @@ pub mod health;
 pub mod input;
 pub mod memory;
 pub mod movement;
+pub mod pathfinding;
 pub mod render;
 
 #[macro_export]
@@ -35,6 +36,7 @@ pub enum WorldSystem {
     Move,
     Memory,
     Attack,
+    Pathfinding,
 }
 
 impl WorldSystem {
@@ -44,6 +46,7 @@ impl WorldSystem {
             WorldSystem::Move => run_move_system(world)?,
             WorldSystem::Memory => run_memory_system(world)?,
             WorldSystem::Attack => run_attack_system(world)?,
+            WorldSystem::Pathfinding => run_pathfinding_system(world)?,
         }
         Ok(())
     }

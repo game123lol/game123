@@ -18,7 +18,8 @@ use resources::Resources;
 use std::{collections::HashMap, env, sync::Arc};
 use systems::{
     health::{Damage, DummyHealth},
-    movement::{dir_to_vec2, WantsMove},
+    movement::{dir_to_vec3, WantsMove},
+    pathfinding::Pathfinder,
     render::{run_render_system, Renderable},
     GameSystem, WorldSystem,
 };
@@ -188,7 +189,7 @@ impl egui_tetra::State<anyhow::Error> for Game {
                     let mut cmd = CommandBuffer::new();
                     if let Some((target, _)) = mobs
                         .iter()
-                        .find(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec2(&dir))
+                        .find(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec3(&dir))
                     {
                         cmd.insert(e, (WantsAttack(Damage(1), target),));
                     } else {
@@ -279,6 +280,7 @@ impl Game {
             WorldSystem::Move,
             WorldSystem::FovCompute,
             WorldSystem::Memory,
+            WorldSystem::Pathfinding,
             WorldSystem::Attack,
         ];
         let resources = Resources::load(ctx, &assets_path);
@@ -294,6 +296,7 @@ impl Game {
             Renderable(Arc::from("nettle")),
             Mob,
             DummyHealth(3),
+            Pathfinder,
         );
         world.spawn(nettle);
         let scaler = ScreenScaler::new(

@@ -5,7 +5,7 @@ use crate::{components::Position, map::WorldMap, need_components, Direction, Mob
 
 pub struct WantsMove(pub Direction);
 
-pub const fn dir_to_vec2(dir: &Direction) -> Vec3<i32> {
+pub const fn dir_to_vec3(dir: &Direction) -> Vec3<i32> {
     match dir {
         Direction::Forward => Vec3::new(0, -1, 0),
         Direction::Back => Vec3::new(0, 1, 0),
@@ -13,6 +13,18 @@ pub const fn dir_to_vec2(dir: &Direction) -> Vec3<i32> {
         Direction::Right => Vec3::new(1, 0, 0),
         Direction::Up => Vec3::new(0, 0, 1),
         Direction::Down => Vec3::new(0, 0, -1),
+    }
+}
+
+pub fn vec3_to_dir(vec: &Vec3<i32>) -> Option<Direction> {
+    match vec.into_tuple() {
+        (0, -1, 0) => Some(Direction::Forward),
+        (0, 1, 0) => Some(Direction::Back),
+        (-1, 0, 0) => Some(Direction::Left),
+        (1, 0, 0) => Some(Direction::Right),
+        (0, 0, 1) => Some(Direction::Up),
+        (0, 0, -1) => Some(Direction::Down),
+        _ => None,
     }
 }
 
@@ -28,11 +40,11 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
     let (_, (map,)) = binding
         .into_iter()
         .next()
-        .ok_or(need_components!(MovePlayerSystem, Map))?;
+        .ok_or(need_components!(MoveSystem, Map))?;
     let mut cmd = CommandBuffer::new();
     let mut next_steps = movables
         .iter()
-        .map(|(e, (Position(pos), WantsMove(dir)))| (e.id(), *pos + dir_to_vec2(dir)))
+        .map(|(e, (Position(pos), WantsMove(dir)))| (e.id(), *pos + dir_to_vec3(dir)))
         .collect::<Vec<_>>();
     next_steps.dedup_by(|a, b| a.1 == b.1);
     for (e, (Position(pos), _)) in movables.iter() {
