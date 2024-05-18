@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tetra::math::Vec3;
+use vek::Vec3;
 
 use {
     random::Source,

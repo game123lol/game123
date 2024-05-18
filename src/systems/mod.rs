@@ -1,5 +1,4 @@
 use hecs::World;
-use tetra::Context;
 
 use crate::Game;
 
@@ -53,9 +52,9 @@ impl WorldSystem {
 }
 
 impl GameSystem {
-    pub fn run(&self, game: &mut Game, ctx: &mut Context) -> anyhow::Result<()> {
+    pub fn run(&self, game: &mut Game) -> anyhow::Result<()> {
         match self {
-            GameSystem::InputSystem => run_input_system(game, ctx)?,
+            GameSystem::InputSystem => run_input_system(game)?,
         }
         Ok(())
     }

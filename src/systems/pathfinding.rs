@@ -1,6 +1,6 @@
 use hecs::{CommandBuffer, Query, World};
 use pathfinding::prelude::*;
-use tetra::math::Vec3;
+use vek::Vec3;
 
 use crate::{
     components::Position,

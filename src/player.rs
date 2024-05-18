@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use hecs::World;
-use tetra::math::Vec3;
+use vek::Vec3;
 
 use crate::{
     components::Position,

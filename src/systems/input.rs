@@ -1,7 +1,8 @@
+use macroquad::prelude::{
+    clear_input_queue, get_char_pressed, get_keys_down, get_keys_pressed, KeyCode,
+};
 use std::collections::HashMap;
 use thiserror::Error;
-
-use tetra::input::{get_keys_pressed, Key};
 
 use crate::{Game, PlayerAction, UIState};
 
@@ -16,34 +17,36 @@ pub type InputSystemResult<T> = Result<T, InputSystemError>;
 fn get_dialog<'a>(
     game: &'a Game,
     dialog_name: &str,
-) -> InputSystemResult<&'a HashMap<Key, PlayerAction>> {
+) -> InputSystemResult<&'a HashMap<char, PlayerAction>> {
     game.ui_config
         .dialogs_keys
         .get(dialog_name)
         .ok_or(InputSystemError::KeyMapNotSet(dialog_name.to_string()))
 }
 
-pub fn run_input_system(game: &mut Game, ctx: &mut tetra::Context) -> InputSystemResult<()> {
+pub fn run_input_system(game: &mut Game) -> InputSystemResult<()> {
     game.next_action = PlayerAction::Nothing;
-    if let Some(key) = get_keys_pressed(ctx).next() {
+    let mut keys = get_char_pressed().into_iter();
+    while let Some(key) = keys.next() {
         match &game.ui_state {
             UIState::No | UIState::Debug => {
-                if let Some(val) = game.ui_config.world_keys.get(key) {
+                if let Some(val) = game.ui_config.world_keys.get(&key) {
                     game.next_action = val.to_owned();
                 }
             }
             UIState::Inventory { .. } => {
-                if let Some(val) = get_dialog(game, "inventory")?.get(key) {
+                if let Some(val) = get_dialog(game, "inventory")?.get(&key) {
                     game.next_action = val.to_owned();
                 }
             }
             UIState::Log { .. } => {
-                if let Some(val) = get_dialog(game, "log")?.get(key) {
+                if let Some(val) = get_dialog(game, "log")?.get(&key) {
                     game.next_action = val.to_owned();
                     //TODO: Код всё равно дублируется
                 }
             }
         }
     }
+    clear_input_queue();
     Ok(())
 }

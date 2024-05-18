@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use tetra::{
-    graphics::{Color, DrawParams},
-    math::Vec2,
-    Context,
+use macroquad::{
+    miniquad::window::screen_size,
+    prelude::{Color, Vec2},
+    texture::{draw_texture, draw_texture_ex, DrawTextureParams},
 };
 
 use crate::{
@@ -50,9 +50,8 @@ const fn xy_tile(num: u32, render_radius: u32) -> (i32, i32, i32) {
 #[derive(Debug)]
 pub struct Renderable(pub Arc<str>);
 
-pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
+pub fn run_render_system(game: &mut Game) -> super::Result {
     let world = &game.world;
-    let canvas_size = game.scaler.inner_size();
     let resources = &game.resources;
     let mut query = world.query::<(&WorldMap,)>();
     let (_, (map,)) = query
@@ -69,7 +68,7 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
             Sight,
             MapMemory
         ))?;
-    let (w, h) = canvas_size;
+    let (w, h) = screen_size();
     let mut renderable_mobs = world.query::<(&Renderable, &Position, &Mob)>();
     let renderable_mobs = renderable_mobs.iter().map(|(e, (r, p, _))| (e, (r, p)));
     let mut renderable_items = world.query::<(&Renderable, &Position, &Item)>();
@@ -97,9 +96,12 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
 
     for (x, y, z) in render_coords {
         let position = Vec2::new(w as f32 / 2., h as f32 / 2.) //центр экрана
-            + Vec2::new((14 * (x - y)) as f32, (7 * (y + x)) as f32)
-            + Vec2::new(0., 0. - 25. * z as f32);
-        if position.x < -20. || position.x > w as f32 || position.y < -20. || position.y > h as f32
+            + Vec2::new(game.scale * (14 * (x - y)) as f32, game.scale * (7 * (y + x)) as f32)
+            + Vec2::new(0.,  0. - 15. * game.scale * z as f32);
+        if position.x < -30. * game.scale
+            || position.x > w as f32
+            || position.y < -30. * game.scale
+            || position.y > h as f32
         {
             continue;
         }
@@ -134,12 +136,12 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
             .sprites
             .get(tile.full_sprite)
             .unwrap_or_else(|| sprite_not_found(tile.full_sprite));
-        let fallback_sprite = tile.fallback_sprite.map(|s| {
-            resources
-                .sprites
-                .get(s)
-                .unwrap_or_else(|| sprite_not_found(s))
-        });
+        // let fallback_sprite = tile.fallback_sprite.map(|s| {
+        //     resources
+        //         .sprites
+        //         .get(s)
+        //         .unwrap_or_else(|| sprite_not_found(s))
+        // });
 
         let is_visible = sight_positions.contains(&(x, y, z));
         let is_memorized = memory_chunk.map_or(false, |a| a.lock().unwrap().memorized[idx]);
@@ -148,7 +150,7 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
             continue;
         }
 
-        let mut params = DrawParams::new().position(position);
+        // let mut params = DrawParams::new().position(position);
 
         // params.color = Color::rgb(
         //     (100.545 * z as f32).abs() % 1.,
@@ -157,10 +159,16 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         // );
         // params.color = Color::WHITE;
 
+        // if !is_visible && is_memorized {
+        //     params.color.r = params.color.r / 3.;
+        //     params.color.g = params.color.g / 3.;
+        //     params.color.b = params.color.b / 3.;
+        // }
+        let mut color = Color::from_hex(0xFFFFFF);
         if !is_visible && is_memorized {
-            params.color.r = params.color.r / 3.;
-            params.color.g = params.color.g / 3.;
-            params.color.b = params.color.b / 3.;
+            color.r = color.r / 3.;
+            color.g = color.g / 3.;
+            color.b = color.b / 3.;
         }
 
         // if !is_full && is_visible {
@@ -171,18 +179,25 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
         //     params.color = params.color.with_green(0.1).with_blue(0.1);
         // }
 
-        if !chunk.obstacles[idx] {
-            params.color = params.color.with_alpha(0.001);
-        }
+        // if let Some(fallback_sprite) = fallback_sprite {
+        //     fallback_sprite
+        //         .texture
+        //         .draw_region(ctx, fallback_sprite.rect, params.clone());
+        // }
+        // sprite.texture.draw_region(ctx, sprite.rect, params.clone());
 
-        if let Some(fallback_sprite) = fallback_sprite {
-            fallback_sprite
-                .texture
-                .draw_region(ctx, fallback_sprite.rect, params.clone());
+        // params.color = Color::WHITE;
+        if tile.name != "empty" {
+            let params = DrawTextureParams {
+                source: Some(sprite.rect),
+                dest_size: Some(Vec2::new(
+                    sprite.rect.w * game.scale,
+                    sprite.rect.h * game.scale,
+                )),
+                ..Default::default()
+            };
+            draw_texture_ex(&sprite.texture, position.x, position.y, color, params);
         }
-        sprite.texture.draw_region(ctx, sprite.rect, params.clone());
-
-        params.color = Color::WHITE;
 
         if let Some(renderables) = ren_map.get(&(x_real, y_real, z_real)) {
             for Renderable(name) in renderables {
@@ -190,14 +205,29 @@ pub fn run_render_system(game: &mut Game, ctx: &mut Context) -> super::Result {
                     .sprites
                     .get(name)
                     .unwrap_or_else(|| sprite_not_found(name));
-                let shift_x = (30. - sprite.rect.width) / 2.;
-                let shift_y = (45. - sprite.rect.height) / 2.;
-                let renderable_params = params
-                    .clone()
-                    .position(params.position + Vec2::new(shift_x, shift_y));
-                sprite
-                    .texture
-                    .draw_region(ctx, sprite.rect, renderable_params);
+                let shift_x = (30. - sprite.rect.w) / 2. * game.scale;
+                let shift_y = (35. - sprite.rect.h) / 2. * game.scale;
+                // let renderable_params = params
+                //     .clone()
+                //     .position(params.position + Vec2::new(shift_x, shift_y));
+                // sprite
+                //     .texture
+                //     .draw_region(ctx, sprite.rect, renderable_params);
+                let params = DrawTextureParams {
+                    source: Some(sprite.rect),
+                    dest_size: Some(Vec2::new(
+                        sprite.rect.w * game.scale,
+                        sprite.rect.h * game.scale,
+                    )),
+                    ..Default::default()
+                };
+                draw_texture_ex(
+                    &sprite.texture,
+                    position.x + shift_x,
+                    position.y + shift_y,
+                    Color::from_hex(0xFFFFFF),
+                    params,
+                );
             }
         }
     }

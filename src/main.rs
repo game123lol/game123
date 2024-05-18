@@ -6,16 +6,18 @@ mod resources;
 mod systems;
 mod tests;
 use components::Position;
-use egui_tetra::{
-    egui::{self, Pos2},
-    StateWrapper,
-};
 use hecs::{CommandBuffer, World};
 use items::{Item, Property};
+use macroquad::{
+    input::KeyCode,
+    miniquad::window::screen_size,
+    prelude::Color,
+    window::{clear_background, next_frame, Conf},
+};
 use map::WorldMap;
 use player::{get_player_items, new_player, Inventory, Log, Player};
 use resources::Resources;
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc, time::Instant};
 use systems::{
     health::{Damage, DummyHealth},
     movement::{dir_to_vec3, WantsMove},
@@ -23,11 +25,7 @@ use systems::{
     render::{run_render_system, Renderable},
     GameSystem, WorldSystem,
 };
-use tetra::{
-    graphics::{self, scaling::ScreenScaler, Color},
-    input::Key,
-    window, Context, ContextBuilder,
-};
+use vek::Vec3;
 
 use crate::systems::health::WantsAttack;
 
@@ -47,34 +45,36 @@ enum UIState {
 /// существо. Это может быть игрок или неигровой персонаж.
 pub struct Mob;
 
-pub type DialogKeys = HashMap<Key, PlayerAction>;
+pub type DialogKeys = HashMap<char, PlayerAction>;
 
 pub struct UIConfig {
     dialogs_keys: HashMap<String, DialogKeys>,
-    world_keys: HashMap<Key, PlayerAction>,
+    world_keys: HashMap<char, PlayerAction>,
 }
 
 impl UIConfig {
     fn default() -> Self {
         let mut dialogs_keys = HashMap::new();
         let mut inventory_keys = HashMap::new();
-        inventory_keys.insert(Key::Q, PlayerAction::CloseInventory);
+        inventory_keys.insert('q', PlayerAction::CloseInventory);
         dialogs_keys.insert("inventory".into(), inventory_keys);
         let mut log_keys = HashMap::new();
-        log_keys.insert(Key::Q, PlayerAction::CloseLog);
+        log_keys.insert('q', PlayerAction::CloseLog);
         dialogs_keys.insert("log".into(), log_keys);
 
         let mut world_keys = HashMap::new();
 
-        world_keys.insert(Key::H, PlayerAction::Move(Direction::Left));
-        world_keys.insert(Key::J, PlayerAction::Move(Direction::Back));
-        world_keys.insert(Key::K, PlayerAction::Move(Direction::Forward));
-        world_keys.insert(Key::L, PlayerAction::Move(Direction::Right));
-        world_keys.insert(Key::U, PlayerAction::Move(Direction::Up));
-        world_keys.insert(Key::N, PlayerAction::Move(Direction::Down));
-        world_keys.insert(Key::I, PlayerAction::OpenInventory);
-        world_keys.insert(Key::E, PlayerAction::PickUpItem);
-        world_keys.insert(Key::P, PlayerAction::OpenLog);
+        world_keys.insert('h', PlayerAction::Move(Direction::Left));
+        world_keys.insert('j', PlayerAction::Move(Direction::Back));
+        world_keys.insert('k', PlayerAction::Move(Direction::Forward));
+        world_keys.insert('l', PlayerAction::Move(Direction::Right));
+        world_keys.insert('u', PlayerAction::Move(Direction::Up));
+        world_keys.insert('n', PlayerAction::Move(Direction::Down));
+        world_keys.insert('i', PlayerAction::OpenInventory);
+        world_keys.insert('e', PlayerAction::PickUpItem);
+        world_keys.insert('p', PlayerAction::OpenLog);
+        world_keys.insert('z', PlayerAction::Zoom);
+        world_keys.insert('Z', PlayerAction::Unzoom);
 
         Self {
             dialogs_keys,
@@ -86,7 +86,6 @@ impl UIConfig {
 pub struct Game {
     world: Type,
     resources: Resources,
-    scaler: ScreenScaler,
     game_systems: GameSystems,
     world_systems: WorldSystems,
     ui_state: UIState,
@@ -94,6 +93,7 @@ pub struct Game {
     next_action: PlayerAction,
     is_paused: bool,
     is_needed_redraw: bool,
+    scale: f32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -105,6 +105,8 @@ pub enum PlayerAction {
     CloseLog,
     PickUpItem,
     Nothing,
+    Zoom,
+    Unzoom,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,59 +124,107 @@ enum Action {
     UIEvent {},
 }
 
-impl egui_tetra::State<anyhow::Error> for Game {
-    fn ui(&mut self, ctx: &mut tetra::Context, egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
-        match &self.ui_state {
-            UIState::Inventory { items } => {
-                egui::Window::new("Inventory")
-                    .fixed_pos(Pos2::new(1., 1.))
-                    .show(egui_ctx, |ui| {
-                        ui.label("Items in inventory:");
-                        for item in items {
-                            ui.label(item.name.clone());
-                        }
-                    });
-            }
-            UIState::No => {}
-            UIState::Debug => {
-                let fps = tetra::time::get_fps(ctx);
-                egui::Window::new("Debug")
-                    .fixed_pos(Pos2::new(1., 1.))
-                    .show(egui_ctx, |ui| {
-                        ui.label(format!("fps: {}", fps));
-                    });
-            }
-            UIState::Log { text } => {
-                egui::Window::new("Log")
-                    .fixed_pos(Pos2::new(1., 1.))
-                    .show(egui_ctx, |ui| {
-                        for event in text.split('\n') {
-                            ui.label(event);
-                        }
-                    });
-            }
-        }
-        Ok(())
-    }
-    fn draw(&mut self, ctx: &mut Context, _egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
-        let (w, h) = window::get_size(ctx);
-        self.scaler.set_outer_size(w, h);
-        if self.is_needed_redraw && self.is_paused {
-            let now = std::time::Instant::now();
+// impl egui_tetra::State<anyhow::Error> for Game {
+//     fn ui(&mut self, ctx: &mut tetra::Context, egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
+//         match &self.ui_state {
+//             UIState::Inventory { items } => {
+//                 egui::Window::new("Inventory")
+//                     .fixed_pos(Pos2::new(1., 1.))
+//                     .show(egui_ctx, |ui| {
+//                         ui.label("Items in inventory:");
+//                         for item in items {
+//                             ui.label(item.name.clone());
+//                         }
+//                     });
+//             }
+//             UIState::No => {}
+//             UIState::Debug => {
+//                 let fps = tetra::time::get_fps(ctx);
+//                 egui::Window::new("Debug")
+//                     .fixed_pos(Pos2::new(1., 1.))
+//                     .show(egui_ctx, |ui| {
+//                         ui.label(format!("fps: {}", fps));
+//                     });
+//             }
+//             UIState::Log { text } => {
+//                 egui::Window::new("Log")
+//                     .fixed_pos(Pos2::new(1., 1.))
+//                     .show(egui_ctx, |ui| {
+//                         for event in text.split('\n') {
+//                             ui.label(event);
+//                         }
+//                     });
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
-            graphics::set_canvas(ctx, self.scaler.canvas());
-            graphics::clear(ctx, Color::rgb(0., 0., 0.));
-            run_render_system(self, ctx).unwrap();
-            graphics::reset_canvas(ctx);
-            graphics::clear(ctx, Color::rgb(0., 0., 0.));
-            self.is_needed_redraw = false;
+impl Game {
+    async fn new() -> anyhow::Result<Game> {
+        let exe_path = env::current_exe().expect("Ты ебанутый? Ты что там делаешь?");
+        let assets_path = exe_path
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|p| p.join("assets"))
+            .filter(|p| p.exists())
+            .unwrap_or(
+                env::current_dir()
+                    .expect("Ты как сюда залез?")
+                    .join("assets"),
+            );
+        let game_systems: GameSystems = vec![GameSystem::InputSystem];
+        let world_systems: WorldSystems = vec![
+            WorldSystem::Move,
+            WorldSystem::FovCompute,
+            WorldSystem::Memory,
+            WorldSystem::Pathfinding,
+            WorldSystem::Attack,
+        ];
+        let resources = Resources::load(&assets_path).await;
+        let mut world = World::new();
+        let map = WorldMap::new();
+        world.spawn((map,));
+        world.spawn(new_player());
+        let mut item = Item::new("thing".into(), "item".into());
+        item.add_props(&[("huy".into(), Property::Marker)]);
+        world.spawn(item.to_map_entity(2, 2, 0));
+        let nettle = (
+            Position(Vec3::new(10, 10, 0)),
+            Renderable(Arc::from("nettle")),
+            Mob,
+            DummyHealth(3),
+            Pathfinder,
+        );
+        world.spawn(nettle);
+        Ok(Game {
+            world,
+            resources,
+            game_systems,
+            world_systems,
+            ui_state: UIState::Debug,
+            ui_config: UIConfig::default(),
+            next_action: PlayerAction::Nothing,
+            is_paused: false,
+            is_needed_redraw: true,
+            scale: 1.,
+        })
+    }
+
+    fn draw(&mut self) -> anyhow::Result<()> {
+        if self.is_needed_redraw || self.is_paused {
+            clear_background(Color::from_hex(0x000000));
+            let now = std::time::Instant::now();
             let elapsed = now.elapsed();
             println!("Render elapsed: {:.2?}", elapsed);
+            run_render_system(self)?;
+            self.is_needed_redraw = false;
         }
-        self.scaler.draw(ctx);
+
         Ok(())
     }
-    fn update(&mut self, ctx: &mut Context, _egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
+
+    fn update(&mut self) -> anyhow::Result<()> {
         if self.is_paused {
             match self.next_action {
                 PlayerAction::Move(dir) => {
@@ -243,10 +293,16 @@ impl egui_tetra::State<anyhow::Error> for Game {
                 PlayerAction::CloseLog | PlayerAction::CloseInventory => {
                     self.ui_state = UIState::No;
                 }
+                PlayerAction::Zoom => {
+                    self.scale += 0.1;
+                }
+                PlayerAction::Unzoom => {
+                    self.scale -= 0.1;
+                }
                 _ => {}
             }
             for system in self.game_systems.clone().iter() {
-                system.run(self, ctx)?
+                system.run(self)?
             }
         } else {
             let now = std::time::Instant::now();
@@ -262,75 +318,25 @@ impl egui_tetra::State<anyhow::Error> for Game {
     }
 }
 
-impl Game {
-    fn new(ctx: &mut Context) -> tetra::Result<Game> {
-        let exe_path = env::current_exe().expect("Ты ебанутый? Ты что там делаешь?");
-        let assets_path = exe_path
-            .parent()
-            .and_then(|p| p.parent())
-            .map(|p| p.join("assets"))
-            .filter(|p| p.exists())
-            .unwrap_or(
-                env::current_dir()
-                    .expect("Ты как сюда залез?")
-                    .join("assets"),
-            );
-        let game_systems: GameSystems = vec![GameSystem::InputSystem];
-        let world_systems: WorldSystems = vec![
-            WorldSystem::Move,
-            WorldSystem::FovCompute,
-            WorldSystem::Memory,
-            WorldSystem::Pathfinding,
-            WorldSystem::Attack,
-        ];
-        let resources = Resources::load(ctx, &assets_path);
-        let mut world = World::new();
-        let map = WorldMap::new();
-        world.spawn((map,));
-        world.spawn(new_player());
-        let mut item = Item::new("thing".into(), "item".into());
-        item.add_props(&[("huy".into(), Property::Marker)]);
-        world.spawn(item.to_map_entity(2, 2, 0));
-        let nettle = (
-            Position(tetra::math::Vec3::new(10, 10, 0)),
-            Renderable(Arc::from("nettle")),
-            Mob,
-            DummyHealth(3),
-            Pathfinder,
-        );
-        world.spawn(nettle);
-        let scaler = ScreenScaler::new(
-            ctx,
-            1000,
-            1000,
-            1000,
-            1000,
-            graphics::scaling::ScalingMode::CropPixelPerfect,
-        )
-        .unwrap();
-        Ok(Game {
-            world,
-            resources,
-            scaler,
-            game_systems,
-            world_systems,
-            ui_state: UIState::Debug,
-            ui_config: UIConfig::default(),
-            next_action: PlayerAction::Nothing,
-            is_paused: false,
-            is_needed_redraw: true,
-        })
+fn window_conf() -> Conf {
+    use macroquad::miniquad;
+    Conf {
+        window_title: "Window Conf".to_owned(),
+        fullscreen: false,
+        platform: miniquad::conf::Platform {
+            linux_backend: miniquad::conf::LinuxBackend::WaylandWithX11Fallback,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 
-pub fn main() -> anyhow::Result<()> {
-    ContextBuilder::new("S", 500, 500)
-        .quit_on_escape(true)
-        .resizable(true)
-        .show_mouse(true)
-        .grab_mouse(false)
-        .key_repeat(true)
-        .build()?
-        .run(|ctx| Ok(StateWrapper::new(Game::new(ctx)?)))?;
-    Ok(())
+#[macroquad::main(window_conf)]
+async fn main() -> anyhow::Result<()> {
+    let mut game = Game::new().await?;
+    loop {
+        game.update()?;
+        game.draw()?;
+        next_frame().await;
+    }
 }

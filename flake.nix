@@ -40,6 +40,12 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
   	in {
     	defaultPackage = myRustBuild;
     	devShell = pkgs.mkShell {
+        LD_LIBRARY_PATH = builtins.concatStringsSep ":" [
+          "${pkgs.xorg.libX11}/lib"
+          "${pkgs.xorg.libXi}/lib"
+          "${pkgs.libGL}/lib"
+          "${pkgs.wayland}/lib"
+        ];
       	buildInputs = with pkgs; [ 
           (rustVersion.override { extensions = [ "rust-src" "rust-analyzer" ]; }) 
           gdb

@@ -1,14 +1,5 @@
 ---
 textures:
-- source_file: person.png
-  sprite_size:
-  - 16
-  - 20
-  sprites:
-  - coords:
-    - 0
-    - 0
-    name: person
 - source_file: items.png
   sprite_size:
   - 16
@@ -18,10 +9,10 @@ textures:
     - 0
     - 0
     name: item
-- source_file: iso_new.png
+- source_file: tiles.png
   sprite_size:
   - 30
-  - 40
+  - 30
   sprites:
   - coords:
     - 0
@@ -52,3 +43,7 @@ textures:
     - 0
     - 0
     name: nettle
+  - coords:
+    - 1
+    - 0
+    name: person

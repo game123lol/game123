@@ -2,7 +2,7 @@
 /// если она находится на карте, или же она должна находиться в чьём-нибудь инвентаре.
 use std::{collections::HashMap, sync::Arc};
 
-use tetra::math::Vec3;
+use vek::Vec3;
 
 use crate::{
     components::{Name, Position},
