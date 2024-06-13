@@ -1,6 +1,4 @@
-use macroquad::prelude::{
-    clear_input_queue, get_char_pressed, get_keys_down, get_keys_pressed, KeyCode,
-};
+use macroquad::prelude::{clear_input_queue, get_char_pressed};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -26,8 +24,7 @@ fn get_dialog<'a>(
 
 pub fn run_input_system(game: &mut Game) -> InputSystemResult<()> {
     game.next_action = PlayerAction::Nothing;
-    let mut keys = get_char_pressed().into_iter();
-    while let Some(key) = keys.next() {
+    for key in get_char_pressed().into_iter() {
         match &game.ui_state {
             UIState::No | UIState::Debug => {
                 if let Some(val) = game.ui_config.world_keys.get(&key) {

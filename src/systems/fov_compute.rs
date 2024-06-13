@@ -1,11 +1,14 @@
-use std::{collections::HashSet, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use hecs::World;
 use vek::Vec3;
 
 use crate::{
     components::Position,
-    map::{Chunk, Map, WorldMap},
+    map::{Chunk, Map, WorldMap, CHUNK_SIZE},
     need_components,
     player::Player,
 };
@@ -62,7 +65,7 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
         Direction::Forward,
         Direction::Back,
     ];
-    let chunks_depth = (*sight_radius / 15 + 3) as i32;
+    let chunks_depth = (*sight_radius / CHUNK_SIZE as u32 + 1) as i32;
     let current_chunk = WorldMap::xy_chunk(cam_pos.x, cam_pos.y, cam_pos.z);
     for i in -chunks_depth..=chunks_depth {
         for j in -chunks_depth..=chunks_depth {
@@ -75,23 +78,24 @@ pub fn run_fov_compute_system(world: &World) -> super::Result {
             }
         }
     }
-    let sight_tiles_mutex = Mutex::new(sight_tiles);
+    let tmp_mutex = Mutex::new(Vec::new());
     std::thread::scope(|s| {
         for dir in dirs.iter() {
             let handle = s.spawn({
                 let sight_radius = *sight_radius;
                 let cam_pos = *cam_pos;
                 let map = &*map;
-                let sight_tiles_mutex = &sight_tiles_mutex;
+                let tmp_mutex = &tmp_mutex;
                 move || {
-                    let vec = cast(&cam_pos, &dir, &map, sight_radius);
-                    let mut sight_tiles = sight_tiles_mutex.lock().unwrap();
-                    sight_tiles.extend(vec);
+                    let vec = cast(&cam_pos, dir, map, sight_radius);
+                    let mut tmp = tmp_mutex.lock().unwrap();
+                    tmp.extend(vec);
                 }
             });
             handle.join().unwrap();
         }
     });
+    sight_tiles.extend(tmp_mutex.into_inner().unwrap());
     Ok(())
 }
 
@@ -177,8 +181,8 @@ fn cast(
             str_rect.slope.y1 = rect.slope.y1.max(slope(depth, y as f64 - 1.));
             str_rect.slope.y2 = rect.slope.y2.min(slope(depth, y as f64 + 1.));
             for x in x1..=x2 {
-                let radio = ((x * x + y * y + depth * depth) as f64).sqrt();
-                let in_sight_radius = radio <= 1. + sight_radius as f64;
+                let radio_sqr = (x.pow(2) + y.pow(2) + depth.pow(2)) as f64;
+                let in_sight_radius = radio_sqr <= 1. + sight_radius.pow(2) as f64;
                 if !in_sight_radius {
                     continue;
                 }
@@ -201,8 +205,7 @@ fn cast(
                 };
 
                 let chunk = chunk_mutex.lock().unwrap();
-                let real_crd = WorldMap::xy_index_chunk(x_crd, y_crd, z_crd);
-                let is_obstacle = chunk.obstacles[real_crd];
+                let is_obstacle = chunk.get_obstacle(x_crd, y_crd, z_crd);
                 is_obstacle_on_row = is_obstacle_on_row || is_obstacle;
 
                 // Отправляем тайл в видимые, если он виден или это препятствие

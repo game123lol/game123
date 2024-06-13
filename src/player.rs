@@ -1,13 +1,14 @@
 use std::{collections::HashSet, sync::Arc};
 
-use hecs::World;
+use hecs::{EntityBuilder, World};
 use vek::Vec3;
 
 use crate::{
     components::Position,
     items::Item,
+    mob::{Inventory, Log},
     need_components,
-    systems::{fov_compute::Sight, memory::MapMemory, render::Renderable},
+    systems::{fov_compute::Sight, health::DummyHealth, memory::MapMemory, render::Renderable},
     Mob,
 };
 
@@ -17,38 +18,21 @@ pub struct Player;
 
 /// Компонент, содержащий историю событий от лица сущности, с которой они происходили.
 /// События записаны в текстовом представлении, отделены переносом строки
-pub struct Log(pub String);
 
-impl Log {
-    pub fn write(&mut self, event: &str) {
-        self.0.push_str((event.to_owned() + "\n").as_str());
-    }
-}
-
-pub struct Inventory(pub Vec<Item>);
-
-type PlayerType = (
-    Position,
-    Sight,
-    Renderable,
-    Player,
-    Mob,
-    MapMemory,
-    Inventory,
-    Log,
-);
-
-pub fn new_player() -> PlayerType {
-    (
+pub fn new_player() -> EntityBuilder {
+    let mut ebuilder = EntityBuilder::new();
+    ebuilder.add_bundle((
         Position(Vec3::new(1, 1, 0)),
-        Sight(50, HashSet::new()),
+        Sight(10, HashSet::new()),
         Renderable(Arc::from("person")),
+        DummyHealth(10),
         Player,
         Mob,
         MapMemory::new(),
         Inventory(Vec::new()),
         Log("".to_owned()),
-    )
+    ));
+    ebuilder
 }
 
 pub fn get_player_items(world: &World) -> anyhow::Result<Vec<Item>> {

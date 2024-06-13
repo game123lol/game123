@@ -1,4 +1,4 @@
-use hecs::{CommandBuffer, Query, World};
+use hecs::{CommandBuffer, World};
 use pathfinding::prelude::*;
 use vek::Vec3;
 
@@ -12,15 +12,19 @@ use crate::{
 
 use super::movement::{dir_to_vec3, vec3_to_dir, WantsMove};
 
-type Path = (Vec<Vec3<i32>>, i32);
+// type Path = (Vec<Vec3<i32>>, i32);
 
 pub struct Pathfinder;
+
+const fn mhdistance(a: &Vec3<i32>, b: &Vec3<i32>) -> i32 {
+    (a.x - b.x).abs() + (a.y - b.y).abs() + (a.z - b.z).abs()
+}
 
 pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
     let mut cmd = CommandBuffer::new();
     {
-        let mut mobs_bind = world.query::<(&Mob, &Position)>();
-        let mobs = mobs_bind.iter();
+        // let mut mobs_bind = world.query::<(&Mob, &Position)>();
+        // let mobs = mobs_bind.iter();
         let mut movables = world.query::<(&Position, &Mob, &Pathfinder)>();
         let mut binding = world.query::<(&mut WorldMap,)>();
         let (_, (map,)) = binding
@@ -61,7 +65,7 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
             result
         };
 
-        let distance = |pos: &Vec3<i32>| pos.distance_squared(*player_pos);
+        let distance = |pos: &Vec3<i32>| mhdistance(player_pos, pos);
 
         for (e, (Position(pos), _, _)) in movables.iter() {
             let a = astar(pos, sucsessors, distance, |x| x == player_pos);

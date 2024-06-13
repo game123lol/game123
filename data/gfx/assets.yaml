@@ -47,3 +47,7 @@ textures:
     - 1
     - 0
     name: person
+  - coords:
+    - 2
+    - 0
+    name: killer

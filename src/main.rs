@@ -1,6 +1,7 @@
 mod components;
 mod items;
 mod map;
+mod mob;
 mod player;
 mod resources;
 mod systems;
@@ -9,15 +10,14 @@ use components::Position;
 use hecs::{CommandBuffer, World};
 use items::{Item, Property};
 use macroquad::{
-    input::KeyCode,
-    miniquad::window::screen_size,
     prelude::Color,
     window::{clear_background, next_frame, Conf},
 };
 use map::WorldMap;
-use player::{get_player_items, new_player, Inventory, Log, Player};
+use mob::{Inventory, Log};
+use player::{get_player_items, new_player, Player};
 use resources::Resources;
-use std::{collections::HashMap, env, sync::Arc, time::Instant};
+use std::{collections::HashMap, env, sync::Arc};
 use systems::{
     health::{Damage, DummyHealth},
     movement::{dir_to_vec3, WantsMove},
@@ -124,55 +124,16 @@ enum Action {
     UIEvent {},
 }
 
-// impl egui_tetra::State<anyhow::Error> for Game {
-//     fn ui(&mut self, ctx: &mut tetra::Context, egui_ctx: &egui::CtxRef) -> anyhow::Result<()> {
-//         match &self.ui_state {
-//             UIState::Inventory { items } => {
-//                 egui::Window::new("Inventory")
-//                     .fixed_pos(Pos2::new(1., 1.))
-//                     .show(egui_ctx, |ui| {
-//                         ui.label("Items in inventory:");
-//                         for item in items {
-//                             ui.label(item.name.clone());
-//                         }
-//                     });
-//             }
-//             UIState::No => {}
-//             UIState::Debug => {
-//                 let fps = tetra::time::get_fps(ctx);
-//                 egui::Window::new("Debug")
-//                     .fixed_pos(Pos2::new(1., 1.))
-//                     .show(egui_ctx, |ui| {
-//                         ui.label(format!("fps: {}", fps));
-//                     });
-//             }
-//             UIState::Log { text } => {
-//                 egui::Window::new("Log")
-//                     .fixed_pos(Pos2::new(1., 1.))
-//                     .show(egui_ctx, |ui| {
-//                         for event in text.split('\n') {
-//                             ui.label(event);
-//                         }
-//                     });
-//             }
-//         }
-//         Ok(())
-//     }
-// }
-
 impl Game {
     async fn new() -> anyhow::Result<Game> {
         let exe_path = env::current_exe().expect("Ты ебанутый? Ты что там делаешь?");
-        let assets_path = exe_path
+        let data_path = exe_path
             .parent()
             .and_then(|p| p.parent())
-            .map(|p| p.join("assets"))
+            .map(|p| p.join("data"))
             .filter(|p| p.exists())
-            .unwrap_or(
-                env::current_dir()
-                    .expect("Ты как сюда залез?")
-                    .join("assets"),
-            );
+            .unwrap_or(env::current_dir().expect("Ты как сюда залез?").join("data"));
+        let mut resources = Resources::load(&data_path).await;
         let game_systems: GameSystems = vec![GameSystem::InputSystem];
         let world_systems: WorldSystems = vec![
             WorldSystem::Move,
@@ -181,22 +142,25 @@ impl Game {
             WorldSystem::Pathfinding,
             WorldSystem::Attack,
         ];
-        let resources = Resources::load(&assets_path).await;
         let mut world = World::new();
         let map = WorldMap::new();
         world.spawn((map,));
-        world.spawn(new_player());
+        world.spawn(new_player().build());
         let mut item = Item::new("thing".into(), "item".into());
         item.add_props(&[("huy".into(), Property::Marker)]);
         world.spawn(item.to_map_entity(2, 2, 0));
-        let nettle = (
-            Position(Vec3::new(10, 10, 0)),
-            Renderable(Arc::from("nettle")),
-            Mob,
-            DummyHealth(3),
-            Pathfinder,
-        );
-        world.spawn(nettle);
+        // let nettle = (
+        //     Position(Vec3::new(10, 10, 0)),
+        //     Renderable(Arc::from("nettle")),
+        //     Mob,
+        //     DummyHealth(3),
+        //     Pathfinder,
+        // );
+        // world.spawn(nettle);
+
+        let mut builder = resources.entity_templates.get_mut("nettle").unwrap();
+        world.spawn(builder.build());
+
         Ok(Game {
             world,
             resources,
@@ -215,9 +179,9 @@ impl Game {
         if self.is_needed_redraw || self.is_paused {
             clear_background(Color::from_hex(0x000000));
             let now = std::time::Instant::now();
+            run_render_system(self)?;
             let elapsed = now.elapsed();
             println!("Render elapsed: {:.2?}", elapsed);
-            run_render_system(self)?;
             self.is_needed_redraw = false;
         }
 
@@ -305,12 +269,12 @@ impl Game {
                 system.run(self)?
             }
         } else {
-            let now = std::time::Instant::now();
             for system in self.world_systems.iter() {
-                system.run(&mut self.world)?
+                let now = std::time::Instant::now();
+                system.run(&mut self.world)?;
+                let elapsed = now.elapsed();
+                println!("{:?} system elapsed: {:.2?}", system, elapsed);
             }
-            let elapsed = now.elapsed();
-            println!("World systems elapsed: {:.2?}", elapsed);
 
             self.is_paused = true;
         }

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use crate::{
     components::Position,
-    map::{Map, WorldMap},
+    map::{self, Chunk, Map, WorldMap, CHUNK_SIZE},
     need_components,
     player::Player,
 };
@@ -24,14 +24,18 @@ impl MapMemory {
 }
 
 pub struct MemoryChunk {
-    pub memorized: [bool; 3375],
+    pub memorized: [bool; CHUNK_SIZE.pow(3)],
 }
 
 impl MemoryChunk {
     pub const fn new() -> Self {
         MemoryChunk {
-            memorized: [false; 3375],
+            memorized: [false; CHUNK_SIZE.pow(3)],
         }
+    }
+    pub fn is_memorized(&self, x: i32, y: i32, z: i32) -> bool {
+        let idx = MapMemory::xy_index_chunk(x, y, z);
+        unsafe { *self.memorized.get_unchecked(idx) }
     }
 }
 

@@ -1,0 +1,10 @@
+---
+nettle:
+  position:
+    - 10
+    - 10
+    - 0
+  renderable: "nettle" 
+  mob: {}
+  health: 3
+  pathfinder: {}
