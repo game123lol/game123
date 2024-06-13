@@ -1,6 +1,7 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
+    num::ParseIntError,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
@@ -13,7 +14,9 @@ use macroquad::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::from_str;
 use serde_yaml::{Mapping, Value};
+use vek::Vec3;
 
 use crate::{
     components::Position,
@@ -70,54 +73,73 @@ impl Resources {
     pub fn load_templates(data_path: &Path) -> BTreeMap<Arc<str>, EntityBuilder> {
         let mut entity_templates = BTreeMap::new();
         let file = fs::read_to_string(data_path.join("templates.yaml")).unwrap();
-        let templates: BTreeMap<String, BTreeMap<&str, Value>> =
-            serde_yaml::from_str(&file).unwrap();
+        let templates: BTreeMap<String, Vec<Value>> = serde_yaml::from_str(&file).unwrap();
         for (template_name, template) in templates {
             let mut eb = EntityBuilder::new();
             for component in template {
                 match component {
-                    ("health", Value::Number(n)) => {
-                        eb.add(DummyHealth(n.as_i64().unwrap() as i32));
-                    }
-                    ("log", Value::Mapping(_)) => {
-                        eb.add(Log("".into()));
-                    }
-                    ("mob", Value::Mapping(_)) => {
-                        eb.add(Mob);
-                    }
-                    ("inventory", Value::Mapping(_)) => {
-                        eb.add(Inventory(Vec::new()));
-                    }
-                    ("map_memory", Value::Mapping(_)) => {
-                        eb.add(Inventory(Vec::new()));
-                    }
-                    ("sight", Value::Number(n)) => {
-                        eb.add(Sight(n.as_u64().unwrap() as u32, HashSet::new()));
-                    }
-                    ("position", Value::Sequence(vec)) => match &vec[..] {
-                        [Value::Number(x), Value::Number(y), Value::Number(z)] => {
-                            eb.add(Position(vek::Vec3::new(
-                                x.as_i64().unwrap() as i32,
-                                y.as_i64().unwrap() as i32,
-                                z.as_i64().unwrap() as i32,
-                            )));
+                    Value::String(ref compo_name) => match compo_name.as_str() {
+                        "mob" => {
+                            eb.add(Mob);
                         }
-                        _ => {}
+                        "log" => {
+                            eb.add(Log("".into()));
+                        }
+                        "pathfinder" => {
+                            eb.add(Pathfinder);
+                        }
+                        "inventory" => {
+                            eb.add(Inventory(Vec::new()));
+                        }
+                        "map_memory" => {
+                            eb.add(MapMemory::new());
+                        }
+                        _ => {
+                            dbg!(component);
+                            panic!("Уберите это немедленно")
+                        }
                     },
-                    ("renderable", Value::String(str)) => {
-                        eb.add(Renderable(str.to_owned().into()));
+                    Value::Mapping(ref mapping) => {
+                        if mapping.len() != 1 {
+                            dbg!(component);
+                            panic!("Уберите это немедленно");
+                        }
+                        if let Some((Value::String(name), val)) = mapping.iter().next() {
+                            match &(name.as_str(), val) {
+                                ("health", Value::Number(n)) => {
+                                    eb.add(DummyHealth(n.as_i64().unwrap() as i32));
+                                }
+                                ("sight", Value::Number(n)) => {
+                                    eb.add(Sight(n.as_u64().unwrap() as u32, HashSet::new()));
+                                }
+                                ("position", Value::String(pos_str)) => {
+                                    let nums = pos_str
+                                        .split('x')
+                                        .map(|x| x.parse::<i32>())
+                                        .collect::<Result<Vec<i32>, ParseIntError>>()
+                                        .expect("Координаты должны быть в таком формате: XxYxZ");
+                                    if nums.len() != 3 {
+                                        panic!("Координата позиции трёхмерная должна быть");
+                                    }
+                                    eb.add(Position(Vec3::new(nums[0], nums[1], nums[2])));
+                                }
+                                ("renderable", Value::String(str)) => {
+                                    eb.add(Renderable(str.to_owned().into()));
+                                }
+                                _ => {
+                                    dbg!(component);
+                                    panic!("Уберите это немедленно");
+                                }
+                            }
+                        }
                     }
-                    ("pathfinder", Value::Mapping(_)) => {
-                        eb.add(Pathfinder);
-                    }
-                    e => {
-                        println!(
-                            "ЧТОО???? ЭТО ЗА СЛОВО???? ПРАВИЛЬНО СКАЖИТЕ!!! РУСССКИЙ ЧОЛОВЕК!!!"
-                        ); //FIXME: Убрать образцы авторского юмора и сделать нормальные сообщения об ошибках
-                        dbg!(e);
+                    _ => {
+                        dbg!(component);
+                        panic!("Уберите это немедленно")
                     }
                 }
             }
+
             entity_templates.insert(template_name.to_owned().into(), eb);
         }
         entity_templates

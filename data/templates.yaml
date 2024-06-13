@@ -1,10 +1,6 @@
----
 nettle:
-  position:
-    - 10
-    - 10
-    - 0
-  renderable: "nettle" 
-  mob: {}
-  health: 3
-  pathfinder: {}
+- position: 10x10x0
+- renderable: "nettle" 
+- mob
+- health: 3
+- pathfinder
