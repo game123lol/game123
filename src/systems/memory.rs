@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use crate::{
     components::Position,
-    map::{self, Chunk, Map, WorldMap, CHUNK_SIZE},
+    map::{Map, WorldMap, CHUNK_SIZE},
     need_components,
     player::Player,
 };

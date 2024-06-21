@@ -14,17 +14,13 @@ use macroquad::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::from_str;
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Value;
 use vek::Vec3;
 
 use crate::{
     components::Position,
     mob::{Inventory, Log},
-    systems::{
-        fov_compute::Sight, health::DummyHealth, memory::MapMemory, pathfinding::Pathfinder,
-        render::Renderable,
-    },
+    systems::{fov_compute::Sight, memory::MapMemory, pathfinding::Pathfinder, render::Renderable},
     Mob,
 };
 
@@ -53,7 +49,7 @@ pub struct Sprite {
 }
 
 pub struct Assets {
-    pub sprites: BTreeMap<Arc<str>, Sprite>,
+    pub sprites: HashMap<Arc<str>, Sprite>,
     pub textures: Vec<Rc<Texture2D>>,
 }
 
@@ -106,9 +102,9 @@ impl Resources {
                         }
                         if let Some((Value::String(name), val)) = mapping.iter().next() {
                             match &(name.as_str(), val) {
-                                ("health", Value::Number(n)) => {
-                                    eb.add(DummyHealth(n.as_i64().unwrap() as i32));
-                                }
+                                // ("health", Value::Number(n)) => {
+                                //     eb.add(DummyHealth(n.as_i64().unwrap() as i32));
+                                // }
                                 ("sight", Value::Number(n)) => {
                                     eb.add(Sight(n.as_u64().unwrap() as u32, HashSet::new()));
                                 }
@@ -161,7 +157,7 @@ impl Assets {
     }
     pub async fn new(config: &AssetsConfig, assets_path: &Path) -> Self {
         let mut textures = Vec::new();
-        let mut sprites = BTreeMap::new();
+        let mut sprites = HashMap::new();
         for texture_config in config.textures.iter() {
             let texture = load_texture(
                 assets_path

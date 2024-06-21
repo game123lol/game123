@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Mutex,
-};
+use std::{collections::HashSet, sync::Mutex};
 
 use hecs::World;
 use vek::Vec3;

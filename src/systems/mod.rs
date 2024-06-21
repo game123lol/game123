@@ -29,6 +29,7 @@ pub type Result = std::result::Result<(), self::error::Error>;
 pub enum GameSystem {
     InputSystem,
 }
+
 #[derive(Clone, Copy, Debug)]
 pub enum WorldSystem {
     FovCompute,

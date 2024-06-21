@@ -1,6 +1,6 @@
 use std::{
-    collections::BTreeMap,
-    sync::{Arc, Mutex},
+    collections::HashMap,
+    sync::{Arc, MutexGuard},
 };
 
 use macroquad::{
@@ -60,7 +60,7 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
     let renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
 
     //координаты предметов которые надо рендерить
-    let mut ren_map: BTreeMap<(i32, i32, i32), Vec<&Renderable>> = BTreeMap::new();
+    let mut ren_map: HashMap<(i32, i32, i32), Vec<&Renderable>> = HashMap::new();
 
     // разгоняем по тайлам всё что нужно рендерить
     for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
@@ -71,8 +71,10 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
     }
     let render_radius = *sight_radius as i32 + 5;
 
-    let mut prev_chunk_mutex: Option<(&Mutex<Chunk>, i32, i32, i32)> = None;
+    let mut prev_chunk_mutex: Option<(MutexGuard<Chunk>, i32, i32, i32)> = None;
 
+    let base_color = Color::from_hex(0xFFFFFF);
+    let shadowed_color = Color::from_hex(0x555555);
     for z in -render_radius..=render_radius {
         for y in -render_radius..=render_radius {
             for x in -render_radius..=render_radius {
@@ -81,7 +83,7 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
                 }
                 let position = Vec2::new(w / 2., h / 2.)
                     + Vec2::new(
-                        game.scale * (14 * (x - y)) as f32,
+                        game.scale * (16 * (x - y)) as f32,
                         game.scale * (7 * (y + x)) as f32,
                     )
                     + Vec2::new(0., 0. - 15. * game.scale * z as f32);
@@ -96,8 +98,8 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
                 let y_real = y + cam_pos.y;
                 let z_real = z + cam_pos.z;
                 let (ch_x, ch_y, ch_z) = WorldMap::xy_chunk(x_real, y_real, z_real);
-                let chunk_mutex = match prev_chunk_mutex {
-                    Some((mutex, p_ch_x, p_ch_y, p_ch_z))
+                let chunk = match prev_chunk_mutex {
+                    Some((ref mutex, p_ch_x, p_ch_y, p_ch_z))
                         if p_ch_x == ch_x && p_ch_y == ch_y && p_ch_z == ch_z =>
                     {
                         mutex
@@ -107,13 +109,12 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
                         if new_chunk_mutex.is_none() {
                             continue;
                         }
-                        let new_chunk_mutex = new_chunk_mutex.unwrap();
+                        let new_chunk_mutex = new_chunk_mutex.unwrap().lock().unwrap();
                         prev_chunk_mutex = Some((new_chunk_mutex, ch_x, ch_y, ch_z));
-                        new_chunk_mutex
+                        &prev_chunk_mutex.as_ref().unwrap().0
                     }
                 };
 
-                let chunk = chunk_mutex.lock().unwrap();
                 let memory_chunk = map_memory.get_chunk(ch_x, ch_y, ch_z);
                 let tile = chunk.get_tile(x_real, y_real, z_real);
                 let sprite = resources
@@ -131,12 +132,11 @@ pub fn run_render_system(game: &mut Game) -> super::Result {
                     continue;
                 }
 
-                let mut color = Color::from_hex(0xFFFFFF);
-                if !is_visible && is_memorized {
-                    color.r /= 3.;
-                    color.g /= 3.;
-                    color.b /= 3.;
-                }
+                let color = if !is_visible && is_memorized {
+                    shadowed_color
+                } else {
+                    base_color
+                };
 
                 if tile.name != "empty" {
                     let params = DrawTextureParams {

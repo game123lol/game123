@@ -17,15 +17,13 @@ use map::WorldMap;
 use mob::{Inventory, Log};
 use player::{get_player_items, new_player, Player};
 use resources::Resources;
-use std::{collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, time::Duration};
 use systems::{
-    health::{Damage, DummyHealth},
+    health::{Body, BodyPart, BodyPartPart, Organ, Wound},
     movement::{dir_to_vec3, WantsMove},
-    pathfinding::Pathfinder,
-    render::{run_render_system, Renderable},
+    render::run_render_system,
     GameSystem, WorldSystem,
 };
-use vek::Vec3;
 
 use crate::systems::health::WantsAttack;
 
@@ -94,6 +92,42 @@ pub struct Game {
     is_paused: bool,
     is_needed_redraw: bool,
     scale: f32,
+    statistics: Statistics,
+}
+
+pub struct Statistics {
+    systems_average: HashMap<String, (Duration, u32)>,
+}
+
+impl Statistics {
+    pub fn new() -> Self {
+        Self {
+            systems_average: HashMap::new(),
+        }
+    }
+    pub fn show(&self) -> String {
+        let mut total = Duration::default();
+        let mut result = String::new();
+        for (name, (stat, _)) in &self.systems_average {
+            total += *stat;
+            result.push_str(format!("{name} system elapsed: {stat:2?}\n").as_str());
+        }
+        result.push_str(format!("total systems elapsed: {total:2?}\n").as_str());
+        result
+    }
+    pub fn update_stat(&mut self, time: Duration, system: String) {
+        self.systems_average
+            .entry(system)
+            .and_modify(|(avg, counter)| {
+                *counter += 1;
+                *avg = ((*counter - 1) * *avg + time) / *counter;
+                if *counter > 100 {
+                    *counter = 1;
+                    *avg = time;
+                }
+            })
+            .or_insert((time, 1));
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -140,12 +174,21 @@ impl Game {
             WorldSystem::FovCompute,
             WorldSystem::Memory,
             WorldSystem::Pathfinding,
-            WorldSystem::Attack,
+            // WorldSystem::Attack,
         ];
         let mut world = World::new();
         let map = WorldMap::new();
         world.spawn((map,));
-        world.spawn(new_player().build());
+        let mut player = new_player();
+        let body = Body::new().with_part(
+            "head".into(),
+            BodyPart::new().with_part(
+                "head".into(),
+                BodyPartPart::new().with_organ("eyes".into(), Organ::new()),
+            ),
+        );
+        player.add(body);
+        world.spawn(player.build());
         let mut item = Item::new("thing".into(), "item".into());
         item.add_props(&[("huy".into(), Property::Marker)]);
         world.spawn(item.to_map_entity(2, 2, 0));
@@ -172,6 +215,7 @@ impl Game {
             is_paused: false,
             is_needed_redraw: true,
             scale: 1.,
+            statistics: Statistics::new(),
         })
     }
 
@@ -181,7 +225,7 @@ impl Game {
             let now = std::time::Instant::now();
             run_render_system(self)?;
             let elapsed = now.elapsed();
-            println!("Render elapsed: {:.2?}", elapsed);
+            self.statistics.update_stat(elapsed, "Render system".into());
             self.is_needed_redraw = false;
         }
 
@@ -205,7 +249,7 @@ impl Game {
                         .iter()
                         .find(|(_, (_, Position(mob_pos)))| *mob_pos == pos + dir_to_vec3(&dir))
                     {
-                        cmd.insert(e, (WantsAttack(Damage(1), target),));
+                        cmd.insert(e, (WantsAttack(Wound::Bruised, target),));
                     } else {
                         cmd.insert(e, (WantsMove(dir),));
                     }
@@ -273,7 +317,7 @@ impl Game {
                 let now = std::time::Instant::now();
                 system.run(&mut self.world)?;
                 let elapsed = now.elapsed();
-                println!("{:?} system elapsed: {:.2?}", system, elapsed);
+                self.statistics.update_stat(elapsed, format!("{system:?}"));
             }
 
             self.is_paused = true;
@@ -301,6 +345,7 @@ async fn main() -> anyhow::Result<()> {
     loop {
         game.update()?;
         game.draw()?;
+        println!("{}", game.statistics.show());
         next_frame().await;
     }
 }

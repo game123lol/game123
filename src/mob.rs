@@ -1,14 +1,13 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use hecs::EntityBuilder;
+use serde::Deserialize;
 use vek::Vec3;
 
 use crate::{
     components::Position,
     items::Item,
-    systems::{
-        health::DummyHealth, memory::MapMemory, pathfinding::Pathfinder, render::Renderable,
-    },
+    systems::{memory::MapMemory, pathfinding::Pathfinder, render::Renderable},
     Mob,
 };
 
@@ -30,7 +29,7 @@ pub fn new_mob(pos: Vec3<i32>) -> EntityBuilder {
         Position(pos),
         Renderable(Arc::from("killer")),
         Mob,
-        DummyHealth(10),
+        // DummyHealth(10),
         Pathfinder,
         MapMemory::new(),
         Inventory(Vec::new()),

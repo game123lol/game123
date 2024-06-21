@@ -8,7 +8,7 @@ use crate::{
     items::Item,
     mob::{Inventory, Log},
     need_components,
-    systems::{fov_compute::Sight, health::DummyHealth, memory::MapMemory, render::Renderable},
+    systems::{fov_compute::Sight, memory::MapMemory, render::Renderable},
     Mob,
 };
 
@@ -23,9 +23,8 @@ pub fn new_player() -> EntityBuilder {
     let mut ebuilder = EntityBuilder::new();
     ebuilder.add_bundle((
         Position(Vec3::new(1, 1, 0)),
-        Sight(10, HashSet::new()),
+        Sight(50, HashSet::new()),
         Renderable(Arc::from("person")),
-        DummyHealth(10),
         Player,
         Mob,
         MapMemory::new(),
