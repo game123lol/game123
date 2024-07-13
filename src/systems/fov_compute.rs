@@ -8,6 +8,7 @@ use crate::{
     map::{Chunk, Map, WorldMap, CHUNK_SIZE},
     need_components,
     player::Player,
+    GameHasher,
 };
 
 type Quad<T> = (T, T, T, T); //x1, y1, x2, y2
@@ -28,7 +29,7 @@ struct Slope<T> {
 
 /// Компонент, означающий, что сущность с этим компонентом имеет поле зрения.
 /// Он имеет в себе радиус поля зрения и множество координат, которые сущность видит.
-pub struct Sight(pub u32, pub HashSet<(i32, i32, i32)>);
+pub struct Sight(pub u32, pub HashSet<(i32, i32, i32), GameHasher>);
 
 #[derive(Clone, Debug, Copy)]
 enum Direction {

@@ -1,10 +1,14 @@
 use std::{collections::HashMap, sync::Mutex};
 
+
+
 use crate::{
     components::Position,
+    hasher,
     map::{Map, WorldMap, CHUNK_SIZE},
     need_components,
     player::Player,
+    GameHasher,
 };
 
 use super::fov_compute::Sight;
@@ -12,13 +16,13 @@ use super::fov_compute::Sight;
 /// Компонент, означающий, что сущность запоминает тайлы, которые увидела однажды
 /// Хранит в себе карту, где вместо соответствующих тайлов содержатся булевы значения.
 pub struct MapMemory {
-    chunks: HashMap<(i32, i32, i32), Mutex<MemoryChunk>>,
+    chunks: HashMap<(i32, i32, i32), Mutex<MemoryChunk>, GameHasher>,
 }
 
 impl MapMemory {
     pub fn new() -> Self {
         MapMemory {
-            chunks: HashMap::new(),
+            chunks: HashMap::with_hasher(hasher()),
         }
     }
 }

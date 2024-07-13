@@ -1,6 +1,6 @@
 use hecs::{CommandBuffer, World};
 use pathfinding::prelude::*;
-use serde::Deserialize;
+
 use vek::Vec3;
 
 use crate::{

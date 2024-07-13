@@ -1,0 +1,57 @@
+human:
+  torso:
+    chest: 
+      bone_groups:
+      - ribs
+      # TODO: and also
+      organs:
+      - heart
+      - left_lung
+      - right_lung
+      # TODO: and also
+    abdomen:
+      bone_groups:
+        # TODO: idk lol
+      organs:
+      - stomach
+      - liver
+      - intestine
+      # TODO: and also 
+    pelvic:
+      bone_groups:
+      - pelvic
+  head:
+    head:
+      bone_groups:
+      - skull
+      - jaw
+      organs:
+      - brain
+      - left_eye
+      - right_eye
+      # TODO: and also
+  arm: &arm
+    arm:
+      bone_groups:
+      - arm
+    forearm:
+      bone_groups:
+      - forearm
+    hand:
+      bone_groups:
+      - hand
+      properties:
+      - can_hold
+  leg: &leg
+    thigh:
+    knee:
+    leg:
+    foot:
+  left_arm:
+    <<: *arm
+  right_arm:
+    <<: *arm
+  left_leg:
+    <<: *leg
+  right_leg:
+    <<: *leg

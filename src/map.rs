@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use rand::Rng;
 
+
 use std::sync::{Arc, Mutex};
+
+use crate::{hasher, GameHasher};
 
 pub const CHUNK_SIZE: usize = 64;
 
@@ -84,13 +87,13 @@ pub trait Map {
 }
 
 pub struct WorldMap {
-    pub chunks: HashMap<(i32, i32, i32), Mutex<Chunk>>,
+    pub chunks: HashMap<(i32, i32, i32), Mutex<Chunk>, GameHasher>,
 }
 
 impl WorldMap {
     pub fn new() -> Self {
         WorldMap {
-            chunks: HashMap::new(),
+            chunks: HashMap::with_hasher(hasher()),
         }
     }
     pub fn get_obstacle_or_create(&mut self, x: i32, y: i32, z: i32) -> bool {
@@ -115,7 +118,7 @@ impl Map for WorldMap {
 }
 
 impl Chunk {
-    pub fn new(ch_x: i32, ch_y: i32, ch_z: i32) -> Self {
+    pub fn new(_ch_x: i32, _ch_y: i32, ch_z: i32) -> Self {
         let mut tiles = Vec::with_capacity(CHUNK_SIZE.pow(3));
         let mut obstacles = Vec::with_capacity(CHUNK_SIZE.pow(3));
         let mut rng = rand::thread_rng();

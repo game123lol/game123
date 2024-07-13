@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use hecs::{Entity, World};
 use rand::{seq::IteratorRandom, Rng};
 
-use crate::mob::Log;
+use crate::{hasher, mob::Log, GameHasher, Property};
 
 /// Компонент, временно выполняющий роль здоровья у мобов
 /// Позже планируется заменить его на полноценную систему конечностей и органов
@@ -15,13 +15,13 @@ pub struct Health(pub i32);
 pub struct WantsAttack(pub Wound, pub Entity);
 
 pub struct Body {
-    parts: HashMap<String, BodyPart>,
+    parts: HashMap<String, BodyPart, GameHasher>,
 }
 
 impl Body {
     pub fn new() -> Self {
         Self {
-            parts: HashMap::new(),
+            parts: HashMap::with_hasher(hasher()),
         }
     }
     pub fn with_part(mut self, part_name: String, part: BodyPart) -> Self {
@@ -34,13 +34,13 @@ impl Body {
 }
 
 pub struct BodyPart {
-    parts: HashMap<String, BodyPartPart>,
+    parts: HashMap<String, BodyPartPart, GameHasher>,
 }
 
 impl BodyPart {
     pub fn new() -> Self {
         Self {
-            parts: HashMap::new(),
+            parts: HashMap::with_hasher(hasher()),
         }
     }
     pub fn with_part(mut self, part_name: String, part: BodyPartPart) -> Self {
@@ -53,19 +53,21 @@ impl BodyPart {
 }
 
 pub struct BodyPartPart {
-    bone_groups: HashMap<String, BoneGroup>,
+    bone_groups: HashMap<String, BoneGroup, GameHasher>,
     skin: SkinPart,
     muscles: MuscleGroup,
-    organs: HashMap<String, Organ>,
+    organs: HashMap<String, Organ, GameHasher>,
+    properties: HashMap<String, Property, GameHasher>,
 }
 
 impl BodyPartPart {
     pub fn new() -> Self {
         Self {
-            bone_groups: HashMap::new(),
+            bone_groups: HashMap::with_hasher(hasher()),
             skin: SkinPart::new(),
             muscles: MuscleGroup::new(),
-            organs: HashMap::new(),
+            organs: HashMap::with_hasher(hasher()),
+            properties: HashMap::with_hasher(hasher()),
         }
     }
     pub fn with_organ(mut self, organ_name: String, organ: Organ) -> Self {
@@ -81,6 +83,13 @@ impl BodyPartPart {
     }
     pub fn add_bone_group(&mut self, bone_group_name: String, bone_group: BoneGroup) {
         self.bone_groups.insert(bone_group_name, bone_group);
+    }
+    pub fn with_property(mut self, property_name: String, property: Property) -> Self {
+        self.properties.insert(property_name, property);
+        self
+    }
+    pub fn add_property(&mut self, property_name: String, property: Property) {
+        self.properties.insert(property_name, property);
     }
 }
 
@@ -134,8 +143,6 @@ pub enum Fracture {
     Open,
     Closed,
 }
-
-pub fn test() {}
 
 pub fn run_attack_system(world: &mut World) -> anyhow::Result<()> {
     let mut attackers_bind = world.query::<(&WantsAttack,)>();

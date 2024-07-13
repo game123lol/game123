@@ -2,7 +2,8 @@ use macroquad::prelude::{clear_input_queue, get_char_pressed};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::{Game, PlayerAction, UIState};
+
+use crate::{Game, GameHasher, PlayerAction, UIState};
 
 #[derive(Error, Debug)]
 pub enum InputSystemError {
@@ -15,7 +16,7 @@ pub type InputSystemResult<T> = Result<T, InputSystemError>;
 fn get_dialog<'a>(
     game: &'a Game,
     dialog_name: &str,
-) -> InputSystemResult<&'a HashMap<char, PlayerAction>> {
+) -> InputSystemResult<&'a HashMap<char, PlayerAction, GameHasher>> {
     game.ui_config
         .dialogs_keys
         .get(dialog_name)
@@ -25,7 +26,7 @@ fn get_dialog<'a>(
 pub fn run_input_system(game: &mut Game) -> InputSystemResult<()> {
     game.next_action = PlayerAction::Nothing;
     for key in get_char_pressed().into_iter() {
-        match &game.ui_state {
+        match &game.ui {
             UIState::No | UIState::Debug => {
                 if let Some(val) = game.ui_config.world_keys.get(&key) {
                     game.next_action = val.to_owned();

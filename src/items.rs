@@ -2,26 +2,22 @@
 /// если она находится на карте, или же она должна находиться в чьём-нибудь инвентаре.
 use std::{collections::HashMap, sync::Arc};
 
+
 use vek::Vec3;
+
 
 use crate::{
     components::{Name, Position},
+    hasher,
     systems::render::Renderable,
+    GameHasher, Property,
 };
 
 #[derive(Clone)]
 pub struct Item {
     pub name: String,
     pub sprite_name: String,
-    pub properties: HashMap<String, Property>,
-}
-
-#[derive(Clone)]
-pub enum Property {
-    Int(i32),
-    String(String),
-    Float(f64),
-    Marker,
+    pub properties: HashMap<String, Property, GameHasher>,
 }
 
 impl Item {
@@ -29,7 +25,7 @@ impl Item {
         Self {
             name,
             sprite_name,
-            properties: HashMap::new(),
+            properties: HashMap::with_hasher(hasher()),
         }
     }
     pub fn add_props(&mut self, props: &[(String, Property)]) {

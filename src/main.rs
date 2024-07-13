@@ -6,24 +6,28 @@ mod player;
 mod resources;
 mod systems;
 mod tests;
+mod ui;
 use components::Position;
+
 use hecs::{CommandBuffer, World};
-use items::{Item, Property};
+use items::Item;
 use macroquad::{
     prelude::Color,
     window::{clear_background, next_frame, Conf},
 };
 use map::WorldMap;
-use mob::{Inventory, Log};
+use mob::{Inventory, Log, Mob};
 use player::{get_player_items, new_player, Player};
 use resources::Resources;
-use std::{collections::HashMap, env, time::Duration};
+use std::{collections::HashMap, env, sync::Mutex, time::Duration};
 use systems::{
     health::{Body, BodyPart, BodyPartPart, Organ, Wound},
     movement::{dir_to_vec3, WantsMove},
     render::run_render_system,
     GameSystem, WorldSystem,
 };
+
+use ui::{set_skin, UIConfig, UIState};
 
 use crate::systems::health::WantsAttack;
 
@@ -32,53 +36,18 @@ type WorldSystems = Vec<WorldSystem>;
 
 type Type = World;
 
-enum UIState {
-    No,
-    Inventory { items: Vec<Item> },
-    Log { text: String },
-    Debug,
+type GameHasher = fxhash::FxBuildHasher;
+
+pub fn hasher() -> GameHasher {
+    fxhash::FxBuildHasher::default()
 }
 
-/// Компонент, означающий, что сущность с этим компонентом - как-либо действующиее
-/// существо. Это может быть игрок или неигровой персонаж.
-pub struct Mob;
-
-pub type DialogKeys = HashMap<char, PlayerAction>;
-
-pub struct UIConfig {
-    dialogs_keys: HashMap<String, DialogKeys>,
-    world_keys: HashMap<char, PlayerAction>,
-}
-
-impl UIConfig {
-    fn default() -> Self {
-        let mut dialogs_keys = HashMap::new();
-        let mut inventory_keys = HashMap::new();
-        inventory_keys.insert('q', PlayerAction::CloseInventory);
-        dialogs_keys.insert("inventory".into(), inventory_keys);
-        let mut log_keys = HashMap::new();
-        log_keys.insert('q', PlayerAction::CloseLog);
-        dialogs_keys.insert("log".into(), log_keys);
-
-        let mut world_keys = HashMap::new();
-
-        world_keys.insert('h', PlayerAction::Move(Direction::Left));
-        world_keys.insert('j', PlayerAction::Move(Direction::Back));
-        world_keys.insert('k', PlayerAction::Move(Direction::Forward));
-        world_keys.insert('l', PlayerAction::Move(Direction::Right));
-        world_keys.insert('u', PlayerAction::Move(Direction::Up));
-        world_keys.insert('n', PlayerAction::Move(Direction::Down));
-        world_keys.insert('i', PlayerAction::OpenInventory);
-        world_keys.insert('e', PlayerAction::PickUpItem);
-        world_keys.insert('p', PlayerAction::OpenLog);
-        world_keys.insert('z', PlayerAction::Zoom);
-        world_keys.insert('Z', PlayerAction::Unzoom);
-
-        Self {
-            dialogs_keys,
-            world_keys,
-        }
-    }
+#[derive(Clone)]
+pub enum Property {
+    Int(i32),
+    String(String),
+    Float(f64),
+    Marker,
 }
 
 pub struct Game {
@@ -86,23 +55,24 @@ pub struct Game {
     resources: Resources,
     game_systems: GameSystems,
     world_systems: WorldSystems,
-    ui_state: UIState,
+    ui: UIState,
     ui_config: UIConfig,
     next_action: PlayerAction,
     is_paused: bool,
-    is_needed_redraw: bool,
+    is_needed_redraw: Mutex<bool>,
     scale: f32,
-    statistics: Statistics,
+    statistics: Mutex<Statistics>,
 }
 
+#[derive(Clone)]
 pub struct Statistics {
-    systems_average: HashMap<String, (Duration, u32)>,
+    systems_average: HashMap<String, (Duration, u32), GameHasher>,
 }
 
 impl Statistics {
     pub fn new() -> Self {
         Self {
-            systems_average: HashMap::new(),
+            systems_average: HashMap::with_hasher(hasher()),
         }
     }
     pub fn show(&self) -> String {
@@ -160,6 +130,7 @@ enum Action {
 
 impl Game {
     async fn new() -> anyhow::Result<Game> {
+        set_skin().await;
         let exe_path = env::current_exe().expect("Ты ебанутый? Ты что там делаешь?");
         let data_path = exe_path
             .parent()
@@ -174,7 +145,7 @@ impl Game {
             WorldSystem::FovCompute,
             WorldSystem::Memory,
             WorldSystem::Pathfinding,
-            // WorldSystem::Attack,
+            WorldSystem::Attack,
         ];
         let mut world = World::new();
         let map = WorldMap::new();
@@ -189,19 +160,17 @@ impl Game {
         );
         player.add(body);
         world.spawn(player.build());
-        let mut item = Item::new("thing".into(), "item".into());
+        let mut item = Item::new("thing1".into(), "item".into());
         item.add_props(&[("huy".into(), Property::Marker)]);
         world.spawn(item.to_map_entity(2, 2, 0));
-        // let nettle = (
-        //     Position(Vec3::new(10, 10, 0)),
-        //     Renderable(Arc::from("nettle")),
-        //     Mob,
-        //     DummyHealth(3),
-        //     Pathfinder,
-        // );
-        // world.spawn(nettle);
+        let mut item = Item::new("thing2".into(), "item".into());
+        item.add_props(&[("huy".into(), Property::Marker)]);
+        world.spawn(item.to_map_entity(2, 3, 0));
+        let mut item = Item::new("thing3".into(), "item".into());
+        item.add_props(&[("huy".into(), Property::Marker)]);
+        world.spawn(item.to_map_entity(2, 4, 0));
 
-        let mut builder = resources.entity_templates.get_mut("nettle").unwrap();
+        let builder = resources.entity_templates.get_mut("nettle").unwrap();
         world.spawn(builder.build());
 
         Ok(Game {
@@ -209,31 +178,44 @@ impl Game {
             resources,
             game_systems,
             world_systems,
-            ui_state: UIState::Debug,
+            ui: UIState::Debug,
             ui_config: UIConfig::default(),
             next_action: PlayerAction::Nothing,
             is_paused: false,
-            is_needed_redraw: true,
+            is_needed_redraw: Mutex::new(true),
             scale: 1.,
-            statistics: Statistics::new(),
+            statistics: Mutex::new(Statistics::new()),
         })
     }
 
-    fn draw(&mut self) -> anyhow::Result<()> {
-        if self.is_needed_redraw || self.is_paused {
+    async fn draw(&self) -> anyhow::Result<()> {
+        let mut is_needed_redraw = self.is_needed_redraw.lock().unwrap();
+        if *is_needed_redraw || self.is_paused {
             clear_background(Color::from_hex(0x000000));
             let now = std::time::Instant::now();
             run_render_system(self)?;
             let elapsed = now.elapsed();
-            self.statistics.update_stat(elapsed, "Render system".into());
-            self.is_needed_redraw = false;
+            let mut stats = self.statistics.lock().unwrap();
+            stats.update_stat(elapsed, "Render system".into());
+            *is_needed_redraw = false;
         }
 
         Ok(())
     }
 
-    fn update(&mut self) -> anyhow::Result<()> {
+    async fn draw_ui(&self) -> anyhow::Result<()> {
+        match self.ui {
+            UIState::No => {}
+            UIState::Inventory { ref items } => ui::inventory(items),
+            UIState::Log { ref text } => ui::log(text),
+            UIState::Debug => ui::debug(&self.statistics.lock().unwrap().to_owned()),
+        }
+        Ok(())
+    }
+
+    async fn update(&mut self) -> anyhow::Result<()> {
         if self.is_paused {
+            let mut is_needed_redraw = self.is_needed_redraw.lock().unwrap();
             match self.next_action {
                 PlayerAction::Move(dir) => {
                     let mut bind = self.world.query::<(&Player, &Position)>();
@@ -256,10 +238,10 @@ impl Game {
                     drop(mobs);
                     cmd.run_on(&mut self.world);
                     self.is_paused = false;
-                    self.is_needed_redraw = true;
+                    *is_needed_redraw = true;
                 }
                 PlayerAction::OpenInventory => {
-                    self.ui_state = UIState::Inventory {
+                    self.ui = UIState::Inventory {
                         items: get_player_items(&self.world)?,
                     }
                 }
@@ -286,7 +268,7 @@ impl Game {
                     drop(bind_player);
                     cmd.run_on(&mut self.world);
                     self.is_paused = false;
-                    self.is_needed_redraw = true;
+                    *is_needed_redraw = true;
                 }
                 PlayerAction::OpenLog => {
                     let mut bind_player = self.world.query::<(&Player, &Log)>();
@@ -294,12 +276,12 @@ impl Game {
                         .into_iter()
                         .next()
                         .expect("Персонаж потерялся. Как так?");
-                    self.ui_state = UIState::Log {
+                    self.ui = UIState::Log {
                         text: log.0.clone(),
                     }
                 }
                 PlayerAction::CloseLog | PlayerAction::CloseInventory => {
-                    self.ui_state = UIState::No;
+                    self.ui = UIState::No;
                 }
                 PlayerAction::Zoom => {
                     self.scale += 0.1;
@@ -309,6 +291,7 @@ impl Game {
                 }
                 _ => {}
             }
+            drop(is_needed_redraw);
             for system in self.game_systems.clone().iter() {
                 system.run(self)?
             }
@@ -317,7 +300,8 @@ impl Game {
                 let now = std::time::Instant::now();
                 system.run(&mut self.world)?;
                 let elapsed = now.elapsed();
-                self.statistics.update_stat(elapsed, format!("{system:?}"));
+                let mut stats = self.statistics.lock().unwrap();
+                stats.update_stat(elapsed, format!("{system:?}"));
             }
 
             self.is_paused = true;
@@ -332,7 +316,7 @@ fn window_conf() -> Conf {
         window_title: "Window Conf".to_owned(),
         fullscreen: false,
         platform: miniquad::conf::Platform {
-            linux_backend: miniquad::conf::LinuxBackend::WaylandWithX11Fallback,
+            linux_backend: miniquad::conf::LinuxBackend::X11Only,
             ..Default::default()
         },
         ..Default::default()
@@ -343,9 +327,13 @@ fn window_conf() -> Conf {
 async fn main() -> anyhow::Result<()> {
     let mut game = Game::new().await?;
     loop {
-        game.update()?;
-        game.draw()?;
-        println!("{}", game.statistics.show());
+        let now = std::time::Instant::now();
+        game.update().await?;
+        game.draw().await?;
+        game.draw_ui().await?;
         next_frame().await;
+        let _elapsed = now.elapsed();
+        let fps = (1. / now.elapsed().as_secs_f64()) as i32;
+        dbg!(fps);
     }
 }

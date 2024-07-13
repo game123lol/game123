@@ -5,6 +5,7 @@ use vek::Vec3;
 
 use crate::{
     components::Position,
+    hasher,
     items::Item,
     mob::{Inventory, Log},
     need_components,
@@ -23,7 +24,7 @@ pub fn new_player() -> EntityBuilder {
     let mut ebuilder = EntityBuilder::new();
     ebuilder.add_bundle((
         Position(Vec3::new(1, 1, 0)),
-        Sight(50, HashSet::new()),
+        Sight(40, HashSet::with_hasher(hasher())),
         Renderable(Arc::from("person")),
         Player,
         Mob,

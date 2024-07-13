@@ -19,9 +19,10 @@ use vek::Vec3;
 
 use crate::{
     components::Position,
+    hasher,
     mob::{Inventory, Log},
     systems::{fov_compute::Sight, memory::MapMemory, pathfinding::Pathfinder, render::Renderable},
-    Mob,
+    GameHasher, Mob,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -49,8 +50,7 @@ pub struct Sprite {
 }
 
 pub struct Assets {
-    pub sprites: HashMap<Arc<str>, Sprite>,
-    pub textures: Vec<Rc<Texture2D>>,
+    pub sprites: HashMap<Arc<str>, Sprite, GameHasher>,
 }
 
 pub struct Resources {
@@ -106,7 +106,10 @@ impl Resources {
                                 //     eb.add(DummyHealth(n.as_i64().unwrap() as i32));
                                 // }
                                 ("sight", Value::Number(n)) => {
-                                    eb.add(Sight(n.as_u64().unwrap() as u32, HashSet::new()));
+                                    eb.add(Sight(
+                                        n.as_u64().unwrap() as u32,
+                                        HashSet::with_hasher(hasher()),
+                                    ));
                                 }
                                 ("position", Value::String(pos_str)) => {
                                     let nums = pos_str
@@ -156,8 +159,7 @@ impl Assets {
         Self::new(&config, assets_path).await
     }
     pub async fn new(config: &AssetsConfig, assets_path: &Path) -> Self {
-        let mut textures = Vec::new();
-        let mut sprites = HashMap::new();
+        let mut sprites = HashMap::with_hasher(hasher());
         for texture_config in config.textures.iter() {
             let texture = load_texture(
                 assets_path
@@ -170,7 +172,6 @@ impl Assets {
             .unwrap();
             texture.set_filter(macroquad::texture::FilterMode::Nearest);
             let texture = Rc::new(texture);
-            textures.push(texture.clone());
             for sprite_config in texture_config.sprites.iter() {
                 let sprite = Sprite {
                     rect: Rect::new(
@@ -184,6 +185,6 @@ impl Assets {
                 sprites.insert(sprite_config.name.to_owned().into(), sprite);
             }
         }
-        Assets { sprites, textures }
+        Assets { sprites }
     }
 }
