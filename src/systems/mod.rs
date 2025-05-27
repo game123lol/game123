@@ -1,27 +1,19 @@
 use hecs::World;
 
-use crate::Game;
+use crate::{body::run_attack_system, Game};
 
 use self::{
-    fov_compute::run_fov_compute_system, health::run_attack_system, input::run_input_system,
-    memory::run_memory_system, movement::run_move_system, pathfinding::run_pathfinding_system,
+    fov_compute::run_fov_compute_system, input::run_input_system, memory::run_memory_system,
+    movement::run_move_system, pathfinding::run_pathfinding_system,
 };
 
 pub mod error;
 pub mod fov_compute;
-pub mod health;
 pub mod input;
 pub mod memory;
 pub mod movement;
 pub mod pathfinding;
 pub mod render;
-
-#[macro_export]
-macro_rules! init_systems {
-    [$($system:expr),*] => {
-        vec![$(Box::new($system)),*]
-    };
-}
 
 pub type Result = std::result::Result<(), self::error::Error>;
 

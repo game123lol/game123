@@ -1,4 +1,4 @@
-workspace = { members = ["lib/rationals"] }
+workspace = { members = [ "lib/enum_unwrap","lib/rationals"] }
 [package]
 name = "game123"
 version = "0.1.0"
@@ -25,6 +25,8 @@ wyhash2 = "0.2.1"
 fasthash = "0.4.0"
 fxhash = "0.2.1"
 t1ha = "0.1.2"
+tr = { version = "0.1.10", features = ["gettext"] }
+enum_unwrap = { path = "lib/enum_unwrap" }
 
 [profile.release]
 strip = true
@@ -35,8 +37,13 @@ overflow-checks = false
 inherits = "dev"
 overflow-checks = false
 opt-level = 1
+[profile.prof.package."*"]
+opt-level = 3
 
 [profile.dev]
 strip = false
 lto = false
 debug = true
+[profile.dev.package."*"]
+opt-level = 3
+

@@ -1,18 +1,9 @@
-
-
-
-
-
-
-use crate::{
-    items::Item,
-};
+use serde::Deserialize;
 
 /// Компонент, содержащий историю событий от лица сущности, с которой они происходили.
 /// События записаны в текстовом представлении, отделены переносом строки
+#[derive(Debug)]
 pub struct Log(pub String);
-
-pub struct Inventory(pub Vec<Item>);
 
 impl Log {
     pub fn write(&mut self, event: &str) {
@@ -22,4 +13,5 @@ impl Log {
 
 /// Компонент, означающий, что сущность с этим компонентом - как-либо действующиее
 /// существо. Это может быть игрок или неигровой персонаж.
+#[derive(Deserialize, Debug)]
 pub struct Mob;

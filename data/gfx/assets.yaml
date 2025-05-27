@@ -9,6 +9,10 @@ textures:
     - 0
     - 0
     name: item
+  - coords:
+    - 1
+    - 0
+    name: knife
 - source_file: tiles.png
   sprite_size:
   - 30

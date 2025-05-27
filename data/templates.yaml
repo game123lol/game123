@@ -1,6 +1,0 @@
-nettle:
-- position: 10x10x0
-- renderable: "nettle" 
-- mob
-# - health: 3
-- pathfinder

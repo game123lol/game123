@@ -1,0 +1,7 @@
+nettle:
+  body: nettle
+  sprite: nettle
+  position: [10, 10, 0]
+  behaviors:
+  - mob
+  - pathfinder

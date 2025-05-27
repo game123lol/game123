@@ -1,0 +1,40 @@
+knife:
+  sprite: knife
+  properties:
+    common_name: knife
+    # здесь должно быть что-нибудь более умно выглядящее
+    qualified_name: knife
+    material: steel
+    # in nms
+    sharpness: 500
+  flags:
+  - tool
+  - can_pierce
+  - can_cut
+
+kevlar_vest:
+  # sprite: todo
+  properties:
+    common_name: kevlar vest
+    qualified_name: kevlar vest
+    armor:
+      layers:
+      - name: kevlar
+        covers:
+          torso:
+            chest: 100
+            abdomen: 100
+        thickness: 3
+        bash: 4.95
+        cut: 6.60
+        ballistic: 16.50
+        rigidity: soft
+      - name: ballistic plate
+        covers:
+          torso:
+            chest: 60
+            abdomen: 80
+        thickness: 25
+        bash: 25
+        cut: 50
+        ballistic: 50

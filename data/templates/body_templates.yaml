@@ -11,6 +11,7 @@ human:
       # TODO: and also
     abdomen:
       bone_groups:
+        - huy_kammenuy
         # TODO: idk lol
       organs:
       - stomach
@@ -30,7 +31,7 @@ human:
       - left_eye
       - right_eye
       # TODO: and also
-  arm: &arm
+  left_arm: &arm
     arm:
       bone_groups:
       - arm
@@ -41,17 +42,30 @@ human:
       bone_groups:
       - hand
       properties:
-      - can_hold
-  leg: &leg
-    thigh:
-    knee:
-    leg:
-    foot:
-  left_arm:
-    <<: *arm
+        size: 5
+      flags:
+      - holder
   right_arm:
-    <<: *arm
-  left_leg:
-    <<: *leg
+    *arm
+  left_leg: &leg
+    thigh:
+      bone_groups:
+        - thigh
+    knee:
+      bone_groups:
+        - knee
+    leg:
+      bone_groups:
+        - leg
+    foot:
+      bone_groups:
+        - foot
   right_leg:
-    <<: *leg
+    *leg
+nettle:
+  leaf:
+    leaf:
+      bone_groups:
+        - leaf
+      organs:
+        - leaf

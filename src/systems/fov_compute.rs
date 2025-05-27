@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Mutex};
 
-use hecs::World;
+use hecs::{With, World};
 use vek::Vec3;
 
 use crate::{
@@ -42,13 +42,14 @@ enum Direction {
 }
 
 pub fn run_fov_compute_system(world: &World) -> super::Result {
-    let mut query = world.query::<(&mut WorldMap,)>();
-    let (_, (map,)) = query
+    let mut query = world.query::<&mut WorldMap>();
+    let (_, map) = query
         .iter()
         .next()
         .ok_or(need_components!(FovSystem, WorldMap))?;
-    let mut query = world.query::<(&Player, &Position, &mut Sight)>();
-    let (_, (_, Position(cam_pos), Sight(sight_radius, sight_tiles))) = query
+    //TODO нужно убрать &Player ????
+    let mut query = world.query::<With<(&Position, &mut Sight), &Player>>();
+    let (_, (Position(cam_pos), Sight(sight_radius, sight_tiles))) = query
         .iter()
         .next()
         .ok_or(need_components!(FovComputeSystem, Player, Position, Sight))?;
@@ -115,11 +116,11 @@ impl Rect {
     }
 }
 
-pub fn slope(depth: i32, col: f64) -> f64 {
+pub const fn slope(depth: i32, col: f64) -> f64 {
     (2. * col - 1.) / (2. * depth as f64)
 }
 
-fn is_symmetric(rect: &Rect, x: i32, y: i32) -> bool {
+const fn is_symmetric(rect: &Rect, x: i32, y: i32) -> bool {
     let x_symmetric = x as f64 >= rect.depth as f64 * rect.slope.x1
         && x as f64 <= rect.depth as f64 * rect.slope.x2;
     let y_symmetric = y as f64 >= rect.depth as f64 * rect.slope.y1

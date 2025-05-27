@@ -1,7 +1,6 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fs,
-    num::ParseIntError,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
@@ -14,15 +13,15 @@ use macroquad::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
 use vek::Vec3;
 
 use crate::{
+    body::{Body, BodyPart, BodyPartPart, BoneGroup, Organ},
     components::Position,
     hasher,
-    mob::{Inventory, Log},
-    systems::{fov_compute::Sight, memory::MapMemory, pathfinding::Pathfinder, render::Renderable},
-    GameHasher, Mob,
+    items::Item,
+    systems::{pathfinding::Pathfinder, render::Renderable},
+    GameHasher, Mob, Property,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -49,100 +48,246 @@ pub struct Sprite {
     pub texture: Rc<Texture2D>,
 }
 
+#[derive(Debug)]
 pub struct Assets {
     pub sprites: HashMap<Arc<str>, Sprite, GameHasher>,
 }
 
 pub struct Resources {
     pub assets: Assets,
-    pub entity_templates: BTreeMap<Arc<str>, EntityBuilder>,
+    pub entity_templates: EntityTemplates,
+    pub body_templates: BodyTemplates,
+    pub item_templates: ItemTemplates,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ItemTemplates {
+    #[serde(flatten)]
+    pub templates: HashMap<String, ItemTemplate, GameHasher>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ItemTemplate {
+    #[serde(rename = "sprite")]
+    pub sprite_name: String,
+    #[serde(default)]
+    pub properties: HashMap<String, Property, GameHasher>,
+    #[serde(default)]
+    pub flags: HashSet<String>,
+}
+
+impl ItemTemplates {
+    pub fn load(data_path: &Path) -> Self {
+        let file = fs::read_to_string(data_path.join("item_templates.yaml")).unwrap();
+        serde_yaml::from_str(&file).unwrap()
+    }
+}
+
+//TODO: либо убрать эту todo, либо переделать эту жесть
+#[derive(Deserialize, Debug)]
+struct ComponentTemplates {
+    body: Option<String>,
+    sprite: Option<String>,
+    behaviors: Option<HashSet<String>>,
+    // Только для тестов
+    position: Option<(i32, i32, i32)>,
+    #[serde(flatten)]
+    dynamic_comps: HashMap<String, String>,
+}
+
+impl ComponentTemplates {
+    pub fn to_entity_builder(&self, body_templates: &BodyTemplates) -> EntityBuilder {
+        let mut eb = EntityBuilder::new();
+        if let Some(body_name) = &self.body {
+            eb.add(body_templates.template(body_name));
+        }
+        if let Some(sprite_name) = &self.sprite {
+            eb.add(Renderable(sprite_name.to_owned().into()));
+        }
+        if let Some(position) = &self.position {
+            eb.add(Position(Vec3 {
+                x: position.0,
+                y: position.1,
+                z: position.2,
+            }));
+        }
+        if let Some(behaviors) = &self.behaviors {
+            for behavior in behaviors {
+                match behavior.as_str() {
+                    "mob" => {
+                        eb.add(Mob);
+                    }
+                    "pathfinder" => {
+                        eb.add(Pathfinder);
+                    }
+                    a => {
+                        println!("Unused behavior: {a}")
+                    }
+                }
+            }
+        }
+        if !self.dynamic_comps.is_empty() {
+            println!("Unused components:");
+            for i in &self.dynamic_comps {
+                println!("\t {:?}", i);
+            }
+        }
+        eb
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct EntityTemplate {
+    #[serde(flatten)]
+    components: ComponentTemplates,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EntityTemplates {
+    #[serde(flatten)]
+    templates: HashMap<String, EntityTemplate, GameHasher>,
+}
+
+//TODO убери анврапы, сделай норм ошибки через thiserror
+impl EntityTemplates {
+    pub fn load(data_path: &Path) -> Self {
+        let file = fs::read_to_string(data_path.join("entity_templates.yaml")).unwrap();
+        serde_yaml::from_str(&file).unwrap()
+    }
+    //TODO билдеры создаются каждый раз, их надо б как нибудь кэшировать чтоль
+    pub fn template(&self, body_templates: &BodyTemplates, template_name: &str) -> EntityBuilder {
+        self.templates
+            .get(template_name)
+            .unwrap()
+            .components
+            .to_entity_builder(body_templates)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BodyTemplates {
+    #[serde(flatten)]
+    pub templates: HashMap<String, BodyTemplate, GameHasher>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BodyTemplate {
+    #[serde(flatten)]
+    bodyparts: HashMap<String, BodyPartTemplate, GameHasher>,
+}
+
+impl BodyTemplate {
+    fn new() -> Self {
+        Self {
+            bodyparts: HashMap::with_hasher(GameHasher::default()),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BodyPartTemplate {
+    #[serde(flatten)]
+    bodypartparts: HashMap<String, BodyPartSegmentTemplate, GameHasher>,
+}
+
+impl BodyPartTemplate {
+    fn new() -> Self {
+        Self {
+            bodypartparts: HashMap::with_hasher(GameHasher::default()),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct BodyPartSegmentTemplate {
+    #[serde(default)]
+    organs: Vec<String>,
+    #[serde(default)]
+    bone_groups: Vec<String>,
+    #[serde(default)]
+    properties: HashMap<String, Property, GameHasher>,
+    #[serde(default)]
+    flags: HashSet<String>,
+}
+
+impl BodyPartSegmentTemplate {
+    fn new() -> Self {
+        Self {
+            organs: Vec::new(),
+            bone_groups: Vec::new(),
+            properties: HashMap::with_hasher(GameHasher::default()),
+            flags: HashSet::new(),
+        }
+    }
+}
+
+impl BodyTemplates {
+    pub fn load(data_path: &Path) -> Self {
+        let file = fs::read_to_string(data_path.join("body_templates.yaml")).unwrap();
+        serde_yaml::from_str(&file).unwrap()
+    }
+    fn template(&self, template_name: &str) -> Body {
+        let template = self
+            .templates
+            .get(template_name)
+            .expect("this body template isnt exist");
+        let mut body = Body::new();
+        for (name, part_template) in &template.bodyparts {
+            let mut part = BodyPart::new();
+            for (part_name, part_segment_template) in &part_template.bodypartparts {
+                let mut part_segment = BodyPartPart::new();
+                for i in part_segment_template.organs.iter() {
+                    part_segment.add_organ(i.clone(), Organ::new())
+                }
+                for i in part_segment_template.bone_groups.iter() {
+                    part_segment.add_bone_group(i.clone(), BoneGroup::new())
+                }
+                for i in part_segment_template.properties.iter() {
+                    part_segment.add_property(i.0.clone(), i.1.to_owned())
+                }
+                part.add_part(part_name.clone(), part_segment);
+            }
+            body.add_part(name.clone(), part);
+        }
+        body
+    }
 }
 
 impl Resources {
     pub async fn load(data_path: &Path) -> Self {
-        let entity_templates = Self::load_templates(data_path);
+        let templates_path = data_path.join("templates");
+        let gfx_path = data_path.join("gfx");
+        let body_templates = BodyTemplates::load(&templates_path);
+        let entity_templates = EntityTemplates::load(&templates_path);
         Self {
-            assets: Assets::load(&data_path.join("gfx")).await,
+            assets: Assets::load(&gfx_path).await,
             entity_templates,
+            body_templates,
+            item_templates: ItemTemplates::load(&templates_path),
         }
     }
-    pub fn load_templates(data_path: &Path) -> BTreeMap<Arc<str>, EntityBuilder> {
-        let mut entity_templates = BTreeMap::new();
-        let file = fs::read_to_string(data_path.join("templates.yaml")).unwrap();
-        let templates: BTreeMap<String, Vec<Value>> = serde_yaml::from_str(&file).unwrap();
-        for (template_name, template) in templates {
-            let mut eb = EntityBuilder::new();
-            for component in template {
-                match component {
-                    Value::String(ref compo_name) => match compo_name.as_str() {
-                        "mob" => {
-                            eb.add(Mob);
-                        }
-                        "log" => {
-                            eb.add(Log("".into()));
-                        }
-                        "pathfinder" => {
-                            eb.add(Pathfinder);
-                        }
-                        "inventory" => {
-                            eb.add(Inventory(Vec::new()));
-                        }
-                        "map_memory" => {
-                            eb.add(MapMemory::new());
-                        }
-                        _ => {
-                            dbg!(component);
-                            panic!("Уберите это немедленно")
-                        }
-                    },
-                    Value::Mapping(ref mapping) => {
-                        if mapping.len() != 1 {
-                            dbg!(component);
-                            panic!("Уберите это немедленно");
-                        }
-                        if let Some((Value::String(name), val)) = mapping.iter().next() {
-                            match &(name.as_str(), val) {
-                                // ("health", Value::Number(n)) => {
-                                //     eb.add(DummyHealth(n.as_i64().unwrap() as i32));
-                                // }
-                                ("sight", Value::Number(n)) => {
-                                    eb.add(Sight(
-                                        n.as_u64().unwrap() as u32,
-                                        HashSet::with_hasher(hasher()),
-                                    ));
-                                }
-                                ("position", Value::String(pos_str)) => {
-                                    let nums = pos_str
-                                        .split('x')
-                                        .map(|x| x.parse::<i32>())
-                                        .collect::<Result<Vec<i32>, ParseIntError>>()
-                                        .expect("Координаты должны быть в таком формате: XxYxZ");
-                                    if nums.len() != 3 {
-                                        panic!("Координата позиции трёхмерная должна быть");
-                                    }
-                                    eb.add(Position(Vec3::new(nums[0], nums[1], nums[2])));
-                                }
-                                ("renderable", Value::String(str)) => {
-                                    eb.add(Renderable(str.to_owned().into()));
-                                }
-                                _ => {
-                                    dbg!(component);
-                                    panic!("Уберите это немедленно");
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        dbg!(component);
-                        panic!("Уберите это немедленно")
-                    }
-                }
-            }
 
-            entity_templates.insert(template_name.to_owned().into(), eb);
-        }
-        entity_templates
+    pub fn template_entity(&self, template_name: &str) -> EntityBuilder {
+        self.entity_templates
+            .template(&self.body_templates, template_name)
     }
+    pub fn template_body(&self, template_name: &str) -> Body {
+        self.body_templates.template(template_name)
+    }
+    pub fn template_item(&self, template_name: &str) -> Item {
+        let template = self
+            .item_templates
+            .templates
+            .get(template_name)
+            .expect("this item template isnt exist");
+        Item {
+            name: template_name.into(),
+            sprite_name: template.sprite_name.clone(),
+            properties: template.properties.clone(),
+            flags: template.flags.clone(),
+        }
+    }
+    pub fn template_mob(&self) {}
 }
 
 impl Assets {

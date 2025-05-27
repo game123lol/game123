@@ -1,8 +1,9 @@
-use hecs::{CommandBuffer, World};
+use hecs::{CommandBuffer, With, World};
 use vek::Vec3;
 
 use crate::{components::Position, map::WorldMap, need_components, Direction, Mob};
 
+#[derive(Debug)]
 pub struct WantsMove(pub Direction);
 
 pub const fn dir_to_vec3(dir: &Direction) -> Vec3<i32> {
@@ -29,15 +30,15 @@ pub fn vec3_to_dir(vec: &Vec3<i32>) -> Option<Direction> {
 }
 
 pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
-    let mut mobs_bind = world.query::<(&Mob, &Position)>();
+    let mut mobs_bind = world.query::<With<&Position, &Mob>>();
     let mobs: Vec<_> = mobs_bind
         .iter()
-        .map(|(e, (_, Position(pos)))| (e.id(), *pos))
+        .map(|(e, Position(pos))| (e.id(), *pos))
         .collect();
     drop(mobs_bind);
     let mut movables = world.query::<(&mut Position, &WantsMove)>();
-    let mut binding = world.query::<(&mut WorldMap,)>();
-    let (_, (map,)) = binding
+    let mut binding = world.query::<&mut WorldMap>();
+    let (_, map) = binding
         .into_iter()
         .next()
         .ok_or(need_components!(MoveSystem, Map))?;
@@ -50,20 +51,21 @@ pub fn run_move_system(world: &mut World) -> anyhow::Result<()> {
     for (e, (Position(pos), _)) in movables.iter() {
         cmd.remove_one::<WantsMove>(e);
         // Если в потенциально занятых позициях есть сущность e
-        if let Some((_, step)) = next_steps.iter().find(|a| a.0 == e.id()) {
-            // И позиция, куда она хочет идти, занята мобом
-            if let Some((collision_mob_id, _)) = mobs.iter().find(|a| a.1 == *step) {
-                // Который никуда не двигается
-                if next_steps.iter().any(|a| a.0 != *collision_mob_id) {
-                    // То не двигать её
-                    continue;
-                }
+        let Some((_, step)) = next_steps.iter().find(|a| a.0 == e.id()) else {
+            continue;
+        };
+        // И позиция, куда она хочет идти, занята мобом
+        if let Some((collision_mob_id, _)) = mobs.iter().find(|a| a.1 == *step) {
+            // Который никуда не двигается
+            if next_steps.iter().any(|a| a.0 != *collision_mob_id) {
+                // То не двигать её
+                continue;
             }
-            // Иначе если на пути нет препятствия
-            if !map.get_obstacle_or_create(step.x, step.y, step.z) {
-                // То двигать
-                *pos = *step;
-            }
+        }
+        // Иначе если на пути нет препятствия
+        if !map.get_obstacle_or_create(step.x, step.y, step.z) {
+            // То двигать
+            *pos = *step;
         }
     }
     drop(movables);

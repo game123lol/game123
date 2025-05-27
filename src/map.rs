@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use rand::Rng;
 
-
 use std::sync::{Arc, Mutex};
 
 use crate::{hasher, GameHasher};

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
 
-
+use hecs::With;
 
 use crate::{
     components::Position,
@@ -57,21 +57,16 @@ impl Map for MapMemory {
 }
 
 pub fn run_memory_system(world: &hecs::World) -> super::Result {
-    let mut query = world.query::<(&mut WorldMap,)>();
-    let (_, (map,)) = query
+    let mut query = world.query::<&mut WorldMap>();
+    let (_, map) = query
         .iter()
         .next()
         .ok_or(need_components!(FovSystem, WorldMap))?;
 
-    let mut query = world.query::<(&Player, &Position, &Sight, &mut MapMemory)>();
-    let (_, (_, Position(cam_pos), Sight(_, sight_tiles), map_memory)) =
-        query.iter().next().ok_or(need_components!(
-            MemorySystem,
-            Player,
-            Position,
-            Sight,
-            MapMemory
-        ))?;
+    let mut query = world.query::<With<(&Position, &Sight, &mut MapMemory), &Player>>();
+    let (_, (Position(cam_pos), Sight(_, sight_tiles), map_memory)) = query.iter().next().ok_or(
+        need_components!(MemorySystem, Player, Position, Sight, MapMemory),
+    )?;
     let shift_back =
         |pos: (i32, i32, i32)| (pos.0 + cam_pos.x, pos.1 + cam_pos.y, pos.2 + cam_pos.z);
 

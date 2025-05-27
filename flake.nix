@@ -18,16 +18,19 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
         	"game123"; # make this what ever your cargo.toml package.name is
       	version = "0.1.0";
       	src = ./.; # the folder with the cargo.toml
-      	cargoLock.lockFile = ./Cargo.lock;
+        cargoLock.lockFile = ./Cargo.lock;
+        cargoLock.outputHashes = {
+         "macroquad-0.4.11" = "sha256-fGc8SCvsqMzTF3kt3fHg2DVGnDJLTkk06/kTA1m6nOo=";
+        };
         buildInputs = with pkgs; [
           SDL2
           cmake
-          alsaLib
+          alsa-lib
         ];
         nativeBuildInputs = with pkgs; [
           SDL2
           cmake
-          alsaLib
+          alsa-lib
           pkg-config
         ];
         postInstall = ''
@@ -49,7 +52,7 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           gdb
           linuxPackages.perf
           cargo-flamegraph
-          alsaLib
+          alsa-lib
           grafx2
           cmake
           freetype
@@ -61,7 +64,7 @@ outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
           rust-analyzer
           SDL2
           cmake
-          alsaLib
+          alsa-lib
           wayland
           egl-wayland
         ];

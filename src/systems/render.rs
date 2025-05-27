@@ -1,7 +1,6 @@
-use std::{
-    sync::{Arc, MutexGuard},
-};
+use std::sync::{Arc, MutexGuard};
 
+use hecs::With;
 use macroquad::{
     miniquad::window::screen_size,
     prelude::{Color, Vec2},
@@ -52,20 +51,21 @@ const fn idx_tile((x, y, z): (i32, i32, i32), render_radius: i32) -> usize {
 /// а так же компонентами Position и Item или Mob, будут отрисованы.
 /// Компонент содержит в себе название спрайта, который будет отрисован.
 /// По этому названию будет сделан запрос в хранилище спрайтов resources (поле Game).
+/// В конфиге используется по ключу "sprite"
 #[derive(Debug)]
 pub struct Renderable(pub Arc<str>);
 
 pub fn run_render_system(game: &Game) -> super::Result {
     let world = &game.world;
     let resources = &game.resources;
-    let mut query = world.query::<(&WorldMap,)>();
-    let (_, (map,)) = query
+    let mut query = world.query::<&WorldMap>();
+    let (_, map) = query
         .iter()
         .next()
         .ok_or(need_components!(RenderSystem, Map))?;
 
-    let mut query = world.query::<(&Player, &Position, &Sight, &MapMemory)>();
-    let (_, (_, Position(cam_pos), Sight(sight_radius, sight_positions), map_memory)) =
+    let mut query = world.query::<With<(&Position, &Sight, &MapMemory), &Player>>();
+    let (_, (Position(cam_pos), Sight(sight_radius, sight_positions), map_memory)) =
         query.iter().next().ok_or(need_components!(
             RenderSystem,
             Player,
@@ -74,41 +74,33 @@ pub fn run_render_system(game: &Game) -> super::Result {
             MapMemory
         ))?;
     let (w, h) = screen_size();
-    let mut renderable_mobs = world.query::<(&Renderable, &Position, &Mob)>();
-    let renderable_mobs = renderable_mobs.iter().map(|(e, (r, p, _))| (e, (r, p)));
-    let mut renderable_items = world.query::<(&Renderable, &Position, &Item)>();
-    let renderable_items = renderable_items.iter().map(|(e, (r, p, _))| (e, (r, p)));
+    let mut renderable_mobs = world.query::<With<(&Renderable, &Position), &Mob>>();
+    let renderable_mobs = renderable_mobs.iter();
+    let mut renderable_items = world.query::<With<(&Renderable, &Position), &Item>>();
+    let renderable_items = renderable_items.iter();
 
     let render_radius = *sight_radius as i32 + 5;
     let prev_sprite: Option<(&str, Sprite)> = None;
     let positions_count = (render_radius as usize * 2 + 1).pow(3);
-    let mut positions: Vec<(bool, (i32, i32, i32), Option<&Renderable>)> =
-        Vec::with_capacity(positions_count);
-    unsafe {
-        positions.set_len(positions_count);
-        for i in 0..positions_count {
-            let ptr = positions.as_mut_ptr().add(i);
-            let val = (false, xyz_tile(i as i32, render_radius), None);
-            std::ptr::write_volatile(ptr, val);
-        }
-        for i in sight_positions.iter() {
-            positions.get_unchecked_mut(idx_tile(*i, render_radius)).0 = true;
-        }
-        for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
-            let in_radius = (pos.x - cam_pos.x).pow(2)
-                + (pos.y - cam_pos.y).pow(2)
-                + (pos.z - cam_pos.z).pow(2)
+
+    let mut positions: Vec<(bool, (i32, i32, i32), Option<&Renderable>)> = (0..positions_count)
+        .map(|i| (false, xyz_tile(i as i32, render_radius), None))
+        .collect();
+    for i in sight_positions.iter() {
+        positions[idx_tile(*i, render_radius)].0 = true;
+    }
+    for (_, (renderable, Position(pos))) in renderable_items.chain(renderable_mobs) {
+        let in_radius =
+            (pos.x - cam_pos.x).pow(2) + (pos.y - cam_pos.y).pow(2) + (pos.z - cam_pos.z).pow(2)
                 <= render_radius.pow(2);
-            if !in_radius {
-                continue;
-            }
-            positions
-                .get_unchecked_mut(idx_tile(
-                    (pos.x - cam_pos.x, pos.y - cam_pos.y, pos.z - cam_pos.z),
-                    render_radius,
-                ))
-                .2 = Some(renderable);
+        if !in_radius {
+            continue;
         }
+        positions[idx_tile(
+            (pos.x - cam_pos.x, pos.y - cam_pos.y, pos.z - cam_pos.z),
+            render_radius,
+        )]
+        .2 = Some(renderable)
     }
 
     let mut prev_chunk_mutex: Option<(MutexGuard<Chunk>, i32, i32, i32)> = None;
@@ -121,8 +113,8 @@ pub fn run_render_system(game: &Game) -> super::Result {
         }
         let position = Vec2::new(w / 2., h / 2.)
             + Vec2::new(
-                game.scale * (16 * (x - y)) as f32,
-                game.scale * (7 * (y + x)) as f32,
+                game.scale * (14 * (x - y - 1)) as f32,
+                game.scale * (7 * (y + x - 1)) as f32,
             )
             + Vec2::new(0., 0. - 15. * game.scale * z as f32);
         if position.x < -30. * game.scale
@@ -168,9 +160,8 @@ pub fn run_render_system(game: &Game) -> super::Result {
                 .unwrap_or_else(|| sprite_not_found(tile.full_sprite))
         };
 
-        let is_memorized = memory_chunk.map_or(false, |a| {
-            a.lock().unwrap().is_memorized(x_real, y_real, z_real)
-        });
+        let is_memorized =
+            memory_chunk.is_some_and(|a| a.lock().unwrap().is_memorized(x_real, y_real, z_real));
 
         if !is_visible && !is_memorized {
             continue;

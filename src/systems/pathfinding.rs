@@ -27,8 +27,8 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
         // let mut mobs_bind = world.query::<(&Mob, &Position)>();
         // let mobs = mobs_bind.iter();
         let mut movables = world.query::<(&Position, &Mob, &Pathfinder)>();
-        let mut binding = world.query::<(&mut WorldMap,)>();
-        let (_, (map,)) = binding
+        let mut binding = world.query::<&mut WorldMap>();
+        let (_, map) = binding
             .iter()
             .next()
             .ok_or(need_components!(Pathfinding, Map))?;
@@ -70,12 +70,14 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
 
         for (e, (Position(pos), _, _)) in movables.iter() {
             let a = astar(pos, sucsessors, distance, |x| x == player_pos);
-            if let Some((path, _)) = a {
-                let next_step = path[1] - pos;
-                if let Some(dir) = vec3_to_dir(&next_step) {
-                    cmd.insert_one(e, WantsMove(dir));
-                }
-            }
+            let Some((path, _)) = a else {
+                continue;
+            };
+            let next_step = path[1] - pos;
+            let Some(dir) = vec3_to_dir(&next_step) else {
+                continue;
+            };
+            cmd.insert_one(e, WantsMove(dir));
         }
     }
     cmd.run_on(world);
