@@ -13,7 +13,7 @@ knife:
   - can_cut
 
 kevlar_vest:
-  # sprite: todo
+  sprite: knife # TODO
   properties:
     common_name: kevlar vest
     qualified_name: kevlar vest
