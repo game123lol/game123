@@ -1,3 +1,4 @@
+mod api;
 mod body;
 mod components;
 mod inventory;
@@ -9,6 +10,7 @@ mod resources;
 mod systems;
 mod tests;
 mod ui;
+use api::ModApi;
 use body::{Body, WantsAttack, Wound};
 use components::Position;
 
@@ -22,7 +24,7 @@ use macroquad::{
 };
 use map::WorldMap;
 use mob::{Log, Mob};
-use player::{get_player_inventory, new_player, Player};
+use player::{get_player_inventory, Player};
 use resources::Resources;
 use serde::Deserialize;
 use std::{collections::HashMap, env, sync::Mutex, time::Duration};
@@ -127,6 +129,7 @@ pub fn search<'a>(
 }
 
 pub struct Game {
+    mod_api: ModApi,
     world: World,
     resources: Resources,
     game_systems: GameSystems,
@@ -232,15 +235,12 @@ enum PlayerAction {
 
 impl Game {
     async fn draw(&mut self) -> anyhow::Result<()> {
-        // if self.is_needed_redraw || self.is_paused {
         clear_background(Color::from_hex(0x000000));
         let now = std::time::Instant::now();
         run_render_system(self)?;
         let elapsed = now.elapsed();
         let mut stats = self.statistics.lock().unwrap();
         stats.update_stat(elapsed, "Render system".into());
-        // self.is_needed_redraw = false;
-        // }
 
         Ok(())
     }
@@ -438,23 +438,13 @@ impl Game {
             // WorldSystem::Attack,
         ];
         let mut world = World::new();
+        let mod_api = ModApi::init(&mut world, &resources);
         world.spawn((WorldTime(0),));
         let map = WorldMap::new();
         world.spawn((map,));
-        let mut player = new_player(&resources);
-        world.spawn(player.build());
-        let pos = Position::new;
-        let item = resources.template_item("knife");
-        world.spawn(item.into_map_entity(&pos(2, 2, 0)));
-        let item = Item::new("thing2".into(), "item".into());
-        world.spawn(item.into_map_entity(&pos(2, 3, 0)));
-        let item = Item::new("thing3".into(), "item".into());
-        world.spawn(item.into_map_entity(&pos(2, 4, 0)));
-
-        let mut builder = resources.template_entity("nettle");
-        world.spawn(builder.build());
 
         Ok(Game {
+            mod_api,
             world,
             resources,
             game_systems,

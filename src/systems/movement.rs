@@ -1,4 +1,4 @@
-use hecs::{CommandBuffer, Entity, With, World};
+use hecs::{Entity, World};
 use vek::Vec3;
 
 use crate::{components::Position, map::WorldMap, need_components, Direction, Mob};

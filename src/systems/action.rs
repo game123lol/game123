@@ -1,8 +1,7 @@
-use hecs::{CommandBuffer, Entity, World};
+use hecs::{Entity, World};
 
 use crate::{
-    body::{run_attack, Wound},
-    format_entity, Direction,
+    body::{run_attack, Wound}, Direction,
 };
 
 use super::movement::run_move;

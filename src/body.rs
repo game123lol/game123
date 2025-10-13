@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hecs::{CommandBuffer, Entity, World};
+use hecs::{Entity, World};
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{hasher, items::Item, mob::Log, GameHasher, Property};

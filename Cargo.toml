@@ -1,4 +1,4 @@
-workspace = { members = [ "lib/enum_unwrap","lib/rationals"] }
+workspace = { members = [ "lib/enum_unwrap","lib/rationals", "simple-exporter"] }
 [package]
 name = "game123"
 version = "0.1.0"
@@ -27,6 +27,7 @@ fxhash = "0.2.1"
 t1ha = "0.1.2"
 tr = { version = "0.1.10", features = ["gettext"] }
 enum_unwrap = { path = "lib/enum_unwrap" }
+mlua = { version = "0.10.5", features = ["luau-jit"] }
 
 [profile.release]
 strip = true

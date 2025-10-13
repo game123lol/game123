@@ -1,3 +1,5 @@
+// #TODO: Заменить на mods/core
+
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -19,8 +21,10 @@ use crate::{
     body::{Body, BodyPart, BodyPartPart, BoneGroup, Organ},
     components::Position,
     hasher,
+    inventory::Inventory,
     items::Item,
-    systems::{pathfinding::Pathfinder, render::Renderable},
+    mob::Log,
+    systems::{fov_compute::Sight, memory::MapMemory, pathfinding::Pathfinder, render::Renderable},
     GameHasher, Mob, Property,
 };
 
@@ -88,6 +92,7 @@ impl ItemTemplates {
 struct ComponentTemplates {
     body: Option<String>,
     sprite: Option<String>,
+    sight: Option<u32>,
     behaviors: Option<HashSet<String>>,
     // Только для тестов
     position: Option<(i32, i32, i32)>,
@@ -111,6 +116,9 @@ impl ComponentTemplates {
                 z: position.2,
             }));
         }
+        if let Some(sight) = &self.sight {
+            eb.add(Sight(*sight, HashSet::with_hasher(hasher())));
+        }
         if let Some(behaviors) = &self.behaviors {
             for behavior in behaviors {
                 match behavior.as_str() {
@@ -119,6 +127,15 @@ impl ComponentTemplates {
                     }
                     "pathfinder" => {
                         eb.add(Pathfinder);
+                    }
+                    "map_memory" => {
+                        eb.add(MapMemory::new());
+                    }
+                    "inventory" => {
+                        eb.add(Inventory::new());
+                    }
+                    "log" => {
+                        eb.add(Log(String::new()));
                     }
                     a => {
                         println!("Unused behavior: {a}")

@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Error;
 use serde::Deserialize;
 
 use crate::{
