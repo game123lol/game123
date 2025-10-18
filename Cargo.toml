@@ -1,4 +1,4 @@
-workspace = { members = [ "lib/enum_unwrap","lib/rationals", "simple-exporter"] }
+workspace = { members = [ "lib/enum_unwrap","lib/rationals" ] }
 [package]
 name = "game123"
 version = "0.1.0"

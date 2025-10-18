@@ -91,13 +91,17 @@ fn spawn_entity_lua(
 }
 
 impl ModApi {
-    pub fn init(world: &mut World, resources: &Resources) -> Self {
+    pub async fn init(world: &mut World, resources: &mut Resources) -> Self {
         let lua = Lua::new();
         lua.sandbox(true).unwrap();
         let mods = std::fs::read_dir("./mods").unwrap();
         let world = Arc::new(Mutex::new(world));
         for game_mod in mods.flatten() {
-            println!("loaded {} mod", game_mod.file_name().into_string().unwrap());
+            println!(
+                "loading {} mod",
+                game_mod.file_name().into_string().unwrap()
+            );
+            resources.load(game_mod.path().as_path()).await;
             let init_lua = fs::read_to_string(game_mod.path().join("init.lua")).unwrap();
 
             let globals = lua.globals();

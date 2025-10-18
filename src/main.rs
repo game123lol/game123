@@ -427,7 +427,6 @@ impl Game {
             .map(|p| p.join("data"))
             .filter(|p| p.exists())
             .unwrap_or(env::current_dir().expect("Ты как сюда залез?").join("data"));
-        let resources = Resources::load(&data_path).await;
         let game_systems: GameSystems = vec![GameSystem::InputSystem];
         let world_systems: WorldSystems = vec![
             // WorldSystem::Move,
@@ -438,7 +437,8 @@ impl Game {
             // WorldSystem::Attack,
         ];
         let mut world = World::new();
-        let mod_api = ModApi::init(&mut world, &resources);
+        let mut resources = Resources::new();
+        let mod_api = ModApi::init(&mut world, &mut resources).await;
         world.spawn((WorldTime(0),));
         let map = WorldMap::new();
         world.spawn((map,));
