@@ -34,8 +34,8 @@ impl UIConfig {
         let mut inventory_keys = HashMap::with_hasher(hasher());
         inventory_keys.insert('q', UIAction::InventoryAction(InventoryAction::Close));
         inventory_keys.insert('d', UIAction::InventoryAction(InventoryAction::DropItem));
-        inventory_keys.insert('e', UIAction::InventoryAction(InventoryAction::TakeItem));
-        inventory_keys.insert('u', UIAction::InventoryAction(InventoryAction::ReleaseItem));
+        inventory_keys.insert('e', UIAction::InventoryAction(InventoryAction::Equip));
+        inventory_keys.insert('u', UIAction::InventoryAction(InventoryAction::Dequip));
         inventory_keys.insert('h', UIAction::Move(Direction::Left));
         inventory_keys.insert('j', UIAction::Move(Direction::Back));
         inventory_keys.insert('k', UIAction::Move(Direction::Forward));

@@ -2,6 +2,7 @@ use hecs::{Entity, World};
 
 use crate::{
     body::{run_attack, Wound},
+    inventory::{run_dequip_item, run_drop_item, run_equip_item, run_pickup_item},
     Direction,
 };
 
@@ -19,10 +20,25 @@ pub struct Action {
     pub action: ActionKind,
 }
 
+impl Action {
+    pub fn new(world: &World, duration: i64, action_kind: ActionKind) -> Self {
+        let mut bind = world.query::<&WorldTime>();
+        let (_, current_time) = bind.iter().last().unwrap();
+        Self {
+            end_time: current_time.0 + duration,
+            action: action_kind,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum ActionKind {
     Attack(Wound, Entity),
     Move(Direction),
+    PickUp(Entity),
+    Equip(usize),
+    Dequip,
+    DropItem(usize),
 }
 
 pub fn run_action_system(world: &mut World) -> super::Result {
@@ -43,6 +59,10 @@ pub fn run_action_system(world: &mut World) -> super::Result {
         ActionKind::Move(dir) => {
             run_move(*e, &dir, world).unwrap();
         }
+        ActionKind::PickUp(item) => run_pickup_item(*e, item, world).unwrap(),
+        ActionKind::Equip(index) => run_equip_item(*e, index, world).unwrap(),
+        ActionKind::Dequip => run_dequip_item(*e, world),
+        ActionKind::DropItem(index) => run_drop_item(*e, index, world).unwrap(),
     }
     world.remove_one::<Action>(*e).unwrap();
     let mut binding = world.query::<&mut WorldTime>();

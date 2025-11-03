@@ -35,8 +35,6 @@ macro_rules! get_vals {
 
 // pub struct Material {}
 
-// Сейчас будет
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct Item {
     pub name: String,

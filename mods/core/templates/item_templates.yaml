@@ -12,6 +12,16 @@ knife:
   - can_pierce
   - can_cut
 
+bat:
+  sprite: bat
+  properties:
+    common_name: bat
+    qualified_name: wooden_bat
+    material: wood
+  flags:
+  - tool
+  - blunt
+
 kevlar_vest:
   sprite: knife # TODO
   properties:

@@ -10,7 +10,7 @@ mod resources;
 mod systems;
 mod tests;
 mod ui;
-use api::ModApi;
+use api::LuaApi;
 use body::{Body, WantsAttack, Wound};
 use components::Position;
 
@@ -129,7 +129,7 @@ pub fn search<'a>(
 }
 
 pub struct Game {
-    mod_api: ModApi,
+    api: LuaApi,
     world: World,
     resources: Resources,
     game_systems: GameSystems,
@@ -207,8 +207,8 @@ pub enum UIAction {
 pub enum InventoryAction {
     Close,
     DropItem,
-    TakeItem,
-    ReleaseItem,
+    Equip,
+    Dequip,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -260,152 +260,181 @@ impl Game {
 
     async fn update(&mut self) -> anyhow::Result<()> {
         if self.is_paused {
-            match self.next_action {
-                PlayerAction::Player(action) => match action {
-                    PlayerWorldAction::Move(dir) => {
-                        let mut bind = self.world.query::<With<&Position, &Player>>();
-                        let (e, Position(pos)) = bind
-                            .into_iter()
-                            .next()
-                            .expect("Персонаж потерялся. Как так?");
-                        let pos = *pos;
-                        drop(bind);
-                        let mut bind = self.world.query::<&WorldTime>();
-                        let (_, current_time) = bind.iter().last().unwrap();
-                        let current_time = current_time.clone();
-                        drop(bind);
-                        let mut mobs = self.world.query::<With<&Position, &Mob>>();
-                        let mut cmd = CommandBuffer::new();
-                        if let Some((target, _)) = mobs
-                            .iter()
-                            .find(|(_, Position(mob_pos))| *mob_pos == pos + dir_to_vec3(&dir))
-                        {
-                            let action = Action {
-                                end_time: current_time.0 + 3,
-                                action: ActionKind::Attack(Wound::Bruised, target),
-                            };
-                            cmd.insert(e, (action,));
-                        } else {
-                            let action = Action {
-                                end_time: current_time.0 + 3,
-                                action: ActionKind::Move(dir),
-                            };
-                            cmd.insert(e, (action,));
-                        }
-                        drop(mobs);
-                        cmd.run_on(&mut self.world);
-                        self.is_paused = false;
-                        self.is_needed_redraw = true;
-                    }
-                    PlayerWorldAction::OpenInventory => {
-                        let inventory = get_player_inventory(&self.world)?;
-                        let state = MenuState::new(inventory.items, inventory.holded);
-                        self.ui = Some(UIState::Inventory { state });
-                    }
-                    PlayerWorldAction::PickUpItem => {
-                        let mut bind_player = self
-                            .world
-                            .query::<With<(&Position, &mut Inventory, &mut Log), &Player>>();
-                        let (_, (player_pos, inventory, log)) = bind_player
-                            .into_iter()
-                            .next()
-                            .expect("Персонаж потерялся. Как так?");
+            self.handle_paused_state().await?;
+        } else {
+            self.run_world().await?;
+        }
+        Ok(())
+    }
 
-                        let mut bind_item = self.world.query::<(&Item, &Position)>();
-                        let items = bind_item
-                            .into_iter()
-                            .filter(|(_, (_, pos))| *pos == player_pos);
-                        let mut cmd = CommandBuffer::new();
-                        for item in items {
-                            inventory.items.push(item.1 .0.clone());
-                            log.write(format!("Подобран предмет {}", item.1 .0.name).as_str());
-                            cmd.despawn(item.0);
-                        }
-                        let _ = (bind_item, bind_player);
-                        cmd.run_on(&mut self.world);
-                        self.is_paused = false;
-                        self.is_needed_redraw = true;
-                    }
-                    PlayerWorldAction::OpenLog => {
-                        let mut bind_player = self.world.query::<With<&Log, &Player>>();
-                        let (_, log) = bind_player
-                            .into_iter()
-                            .next()
-                            .expect("Персонаж потерялся. Как так?");
-                        self.ui = Some(UIState::Log {
-                            text: log.0.clone(),
-                        })
-                    }
-                    PlayerWorldAction::Zoom => {
-                        self.scale += 0.1;
-                    }
-                    PlayerWorldAction::Unzoom => {
-                        self.scale -= 0.1;
-                    }
-                },
-                PlayerAction::UI(ref action) => {
-                    if let Some(ui) = &mut self.ui {
-                        match ui {
-                            UIState::Inventory { state } => {
-                                let (_, (inventory, pos)) = self
-                                    .world
-                                    .query_mut::<With<(&mut Inventory, &Position), &Player>>()
-                                    .into_iter()
-                                    .last()
-                                    .expect("Персонаж потерялся. Как так?"); //TODO: привести сообщения об ошибках в порядок
-                                let mut cmd = CommandBuffer::new();
-                                match action {
-                                    UIAction::Move(Direction::Back) => state.next_item(),
-                                    UIAction::Move(Direction::Forward) => state.prev_item(),
-                                    UIAction::InventoryAction(InventoryAction::TakeItem) => {
-                                        state.holded_item = Some(state.pointer);
-                                        inventory.holded = state.holded_item;
-                                    }
-                                    UIAction::InventoryAction(InventoryAction::ReleaseItem) => {
-                                        state.holded_item = None;
-                                        inventory.holded = state.holded_item;
-                                    }
-                                    UIAction::InventoryAction(InventoryAction::DropItem) => {
-                                        if state.holded_item.is_some_and(|x| x == state.pointer) {
-                                            state.holded_item = None;
-                                            inventory.holded = None;
-                                        }
-                                        state.items.remove(state.pointer);
-                                        let item = inventory.items.remove(state.pointer);
-                                        cmd.spawn(item.into_map_entity(pos));
-                                        state.pointer = state.pointer.saturating_sub(1);
-                                    }
-                                    UIAction::InventoryAction(InventoryAction::Close) => {
-                                        self.ui = None
-                                    }
-                                    _ => {}
+    async fn handle_paused_state(&mut self) -> anyhow::Result<()> {
+        match self.next_action {
+            PlayerAction::Player(action) => self.handle_player_world_action(action).await?,
+            PlayerAction::UI(ref action) => {
+                if let Some(ui) = &mut self.ui {
+                    match ui {
+                        UIState::Inventory { state: menu_state } => {
+                            let mut bind = self.world.query::<With<&Inventory, &Player>>();
+                            let (player_e, pos) =
+                                bind.iter().last().expect("Персонаж потерялся. Как так?"); //TODO: привести сообщения об ошибках в порядок
+                            let mut cmd = CommandBuffer::new();
+                            match action {
+                                UIAction::Move(Direction::Back) => menu_state.next_item(),
+                                UIAction::Move(Direction::Forward) => menu_state.prev_item(),
+                                UIAction::InventoryAction(InventoryAction::Equip) => {
+                                    menu_state.holded_item = Some(menu_state.pointer);
+                                    // inventory.holded = menu_state.holded_item;
+                                    let action = Action::new(
+                                        &self.world,
+                                        1,
+                                        ActionKind::Equip(menu_state.pointer),
+                                    );
+                                    cmd.insert(player_e, (action,));
+                                    self.ui = None;
+                                    self.is_paused = false;
+                                    self.is_needed_redraw = true;
                                 }
-                                let _ = (inventory, pos);
-                                cmd.run_on(&mut self.world);
+                                UIAction::InventoryAction(InventoryAction::Dequip) => {
+                                    menu_state.holded_item = None;
+                                    let action = Action::new(&self.world, 1, ActionKind::Dequip);
+                                    cmd.insert(player_e, (action,));
+                                    self.is_paused = false;
+                                    self.is_needed_redraw = true;
+                                }
+                                UIAction::InventoryAction(InventoryAction::DropItem) => {
+                                    if menu_state
+                                        .holded_item
+                                        .is_some_and(|x| x == menu_state.pointer)
+                                    {
+                                        menu_state.holded_item = None;
+                                    }
+                                    menu_state.items.remove(menu_state.pointer);
+                                    let action = Action::new(
+                                        &self.world,
+                                        1,
+                                        ActionKind::DropItem(menu_state.pointer),
+                                    );
+                                    cmd.insert(player_e, (action,));
+                                    menu_state.pointer = menu_state.pointer.saturating_sub(1);
+                                    self.is_paused = false;
+                                    self.is_needed_redraw = true;
+                                }
+                                UIAction::InventoryAction(InventoryAction::Close) => self.ui = None,
+                                _ => {}
                             }
-                            UIState::Log { .. } => {
-                                if let UIAction::LogAction(LogAction::Close) = action {
-                                    self.ui = None
-                                }
+                            drop(bind);
+                            cmd.run_on(&mut self.world);
+                        }
+                        UIState::Log { .. } => {
+                            if let UIAction::LogAction(LogAction::Close) = action {
+                                self.ui = None
                             }
                         }
                     }
                 }
-                PlayerAction::Nothing => {}
             }
-            for system in self.game_systems.clone().iter() {
-                system.run(self)?
-            }
-        } else {
-            for system in self.world_systems.iter() {
-                let now = std::time::Instant::now();
-                system.run(&mut self.world)?;
-                let elapsed = now.elapsed();
-                let mut stats = self.statistics.lock().unwrap();
-                stats.update_stat(elapsed, format!("{system:?}"));
-            }
-            self.is_paused = self.is_player_move();
+            PlayerAction::Nothing => {}
         }
+        for system in self.game_systems.clone().iter() {
+            system.run(self)?
+        }
+        Ok(())
+    }
+
+    async fn handle_player_world_action(
+        &mut self,
+        action: PlayerWorldAction,
+    ) -> anyhow::Result<()> {
+        match action {
+            PlayerWorldAction::Move(dir) => {
+                let mut bind = self.world.query::<With<&Position, &Player>>();
+                let (player_e, Position(pos)) = bind
+                    .into_iter()
+                    .next()
+                    .expect("Персонаж потерялся. Как так?");
+                let pos = *pos;
+                drop(bind);
+                let mut mobs = self.world.query::<With<&Position, &Mob>>();
+                let mut cmd = CommandBuffer::new();
+                if let Some((target, _)) = mobs
+                    .iter()
+                    .find(|(_, Position(mob_pos))| *mob_pos == pos + dir_to_vec3(&dir))
+                {
+                    let action =
+                        Action::new(&self.world, 3, ActionKind::Attack(Wound::Bruised, target));
+                    cmd.insert(player_e, (action,));
+                } else {
+                    let action = Action::new(&self.world, 3, ActionKind::Move(dir));
+                    cmd.insert(player_e, (action,));
+                }
+                drop(mobs);
+                cmd.run_on(&mut self.world);
+                self.is_paused = false;
+                self.is_needed_redraw = true;
+            }
+            PlayerWorldAction::OpenInventory => {
+                let inventory = get_player_inventory(&self.world)?;
+                dbg!(&inventory);
+                let state = MenuState::new(inventory.items, inventory.holded);
+                self.ui = Some(UIState::Inventory { state });
+            }
+            PlayerWorldAction::PickUpItem => {
+                let mut bind_player = self.world.query::<With<&Position, &Player>>();
+                let (player_e, player_pos) = bind_player
+                    .into_iter()
+                    .next()
+                    .expect("Персонаж потерялся. Как так?");
+
+                let mut bind_item = self.world.query::<With<&Position, &Item>>();
+                let item = bind_item
+                    .into_iter()
+                    .filter(|(_, pos)| *pos == player_pos)
+                    .next();
+                if let Some(item) = item {
+                    let item_e = item.0;
+                    let _ = (bind_item, bind_player);
+                    let action = Action::new(&self.world, 1, ActionKind::PickUp(item_e));
+                    self.world.insert(player_e, (action,)).unwrap();
+                }
+
+                self.is_paused = false;
+                self.is_needed_redraw = true;
+            }
+            PlayerWorldAction::OpenLog => {
+                let mut bind_player = self.world.query::<With<&Log, &Player>>();
+                let (_, log) = bind_player
+                    .into_iter()
+                    .next()
+                    .expect("Персонаж потерялся. Как так?");
+                self.ui = Some(UIState::Log {
+                    text: log.0.clone(),
+                })
+            }
+            PlayerWorldAction::Zoom => {
+                self.scale += 0.1;
+            }
+            PlayerWorldAction::Unzoom => {
+                self.scale -= 0.1;
+            }
+        }
+        Ok(())
+    }
+
+    async fn run_world(&mut self) -> anyhow::Result<()> {
+        let player_e = self.world.query::<&Player>().iter().next().unwrap().0;
+        let player_e = self.world.entity(player_e).unwrap();
+        println!(
+            "{}",
+            component_fmt::<Action>(player_e).unwrap_or("no action".into())
+        );
+        for system in self.world_systems.iter() {
+            let now = std::time::Instant::now();
+            system.run(&mut self.world)?;
+            let elapsed = now.elapsed();
+            let mut stats = self.statistics.lock().unwrap();
+            stats.update_stat(elapsed, format!("{system:?}"));
+        }
+        self.is_paused = self.is_player_move();
         Ok(())
     }
 
@@ -438,13 +467,13 @@ impl Game {
         ];
         let mut world = World::new();
         let mut resources = Resources::new();
-        let mod_api = ModApi::init(&mut world, &mut resources).await;
+        let mod_api = LuaApi::init(&mut world, &mut resources).await;
         world.spawn((WorldTime(0),));
         let map = WorldMap::new();
         world.spawn((map,));
 
         Ok(Game {
-            mod_api,
+            api: mod_api,
             world,
             resources,
             game_systems,

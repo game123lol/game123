@@ -1,11 +1,17 @@
 #[macro_export]
 macro_rules! need_components {
     ($system:ty, $($component:ty),*) => {
-        $crate::systems::error::Error {
+        $crate::systems::error::ComponentError {
             need_components: vec![$(stringify!($component).into()),*],
             system_name: stringify!($system).into()
         }
     };
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    ComponentError(#[from] ComponentError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -14,7 +20,7 @@ macro_rules! need_components {
     system_name,
     need_components
 )]
-pub struct Error {
+pub struct ComponentError {
     pub need_components: Vec<String>,
     pub system_name: String,
 }
