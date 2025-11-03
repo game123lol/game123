@@ -11,7 +11,10 @@ use crate::{
     Direction, Mob,
 };
 
-use super::movement::{dir_to_vec3, vec3_to_dir, WantsMove};
+use super::{
+    action::{Action, ActionKind, WorldTime},
+    movement::{dir_to_vec3, vec3_to_dir},
+};
 
 // type Path = (Vec<Vec3<i32>>, i32);
 
@@ -37,7 +40,8 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
             .iter()
             .next()
             .ok_or(need_components!(Pathfinding, Player))?;
-
+        let mut binding = world.query::<&WorldTime>();
+        let (_, current_time) = binding.iter().last().unwrap();
         let dirs = [
             Direction::Up,
             Direction::Left,
@@ -69,6 +73,10 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
         let distance = |pos: &Vec3<i32>| mhdistance(player_pos, pos);
 
         for (e, (Position(pos), _, _)) in movables.iter() {
+            let is_busy = world.query_one::<&Action>(e).unwrap().get().is_some();
+            if is_busy {
+                continue;
+            }
             let a = astar(pos, sucsessors, distance, |x| x == player_pos);
             let Some((path, _)) = a else {
                 continue;
@@ -77,7 +85,12 @@ pub fn run_pathfinding_system(world: &mut World) -> anyhow::Result<()> {
             let Some(dir) = vec3_to_dir(&next_step) else {
                 continue;
             };
-            cmd.insert_one(e, WantsMove(dir));
+            // cmd.insert_one(e, WantsMove(dir));
+            let action = Action {
+                end_time: current_time.0 + 5,
+                action: ActionKind::Move(dir),
+            };
+            cmd.insert_one(e, action);
         }
     }
     cmd.run_on(world);

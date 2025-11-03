@@ -163,56 +163,53 @@ pub enum Fracture {
     Closed,
 }
 
-pub fn run_attack_system(world: &mut World) -> anyhow::Result<()> {
+pub fn run_attack(
+    attacker: Entity,
+    target: Entity,
+    damage: Wound,
+    world: &mut World,
+) -> anyhow::Result<()> {
     //FIXME Моб может не иметь body, но атака всё равно почему-то проходит (и уходит вникуда)
-    let attackers: Vec<_> = {
-        world
-            .query::<&WantsAttack>()
-            .iter()
-            .map(|(e, a)| (e, *a))
-            .collect()
+    let mut log = String::new();
+    let Ok(target_body) = world.query_one_mut::<&mut Body>(target) else {
+        println!("warn: this entity does not have body");
+        todo!();
     };
-    for (e, WantsAttack(damage, target)) in attackers.iter() {
-        let mut log = String::new();
-        let Ok(target_body) = world.query_one_mut::<&mut Body>(*target) else {
-            println!("warn: this entity does not have body");
-            continue;
-        };
-        let mut rng = rand::thread_rng();
-        let target_part = target_body.parts.iter_mut().choose(&mut rng).unwrap();
-        //TODO: рандомизировать урон
-        //TODO: убрать полный рандом, сделать возможность прицеливаться для удара
-        let target_part_part = target_part.1.parts.iter_mut().choose(&mut rng).unwrap();
+    let mut rng = rand::thread_rng();
+    let target_part = target_body.parts.iter_mut().choose(&mut rng).unwrap();
+    //TODO: рандомизировать урон
+    //TODO: убрать полный рандом, сделать возможность прицеливаться для удара
+    let target_part_part = target_part.1.parts.iter_mut().choose(&mut rng).unwrap();
 
-        let organs_count = target_part_part.1.organs.len();
-        let target_organs_count = rng.gen_range(0..1 + organs_count / 3);
-        let mut target_organs = target_part_part
-            .1
-            .organs
-            .iter_mut()
-            .choose_multiple(&mut rng, target_organs_count);
-        let target_bone_group = target_part_part
-            .1
-            .bone_groups
-            .iter_mut()
-            .choose(&mut rng)
-            .unwrap();
-        log.push_str("You are bruising something, you have inflict wounds: ");
-        for organ in target_organs.iter_mut() {
-            organ.1.wounds.push(*damage);
-            log.push_str(format!("{} ", organ.0).as_str());
-        }
-        target_part_part.1.muscles.wounds.push(*damage);
-        target_part_part.1.skin.wounds.push(*damage);
-        // FIXME добавить более продвинутую обработку ран
-        target_bone_group.1.fractures.push(Fracture::Closed);
-        log.push_str(format!("and {} fracture", target_bone_group.0).as_str());
-        if let Ok(attacker_log) = world.query_one_mut::<&mut Log>(*e) {
-            dbg!("put to log", &log);
-            attacker_log.0.push_str(log.as_str());
-            attacker_log.0.push('\n');
-        }
-        world.remove_one::<WantsAttack>(*e)?;
+    let organs_count = target_part_part.1.organs.len();
+    let target_organs_count = rng.gen_range(0..1 + organs_count / 3);
+    let mut target_organs = target_part_part
+        .1
+        .organs
+        .iter_mut()
+        .choose_multiple(&mut rng, target_organs_count);
+    let target_bone_group = target_part_part
+        .1
+        .bone_groups
+        .iter_mut()
+        .choose(&mut rng)
+        .unwrap();
+    log.push_str("You are bruising something, you have inflict wounds: ");
+    for organ in target_organs.iter_mut() {
+        organ.1.wounds.push(damage);
+        log.push_str(format!("{} ", organ.0).as_str());
     }
+    target_part_part.1.muscles.wounds.push(damage);
+    target_part_part.1.skin.wounds.push(damage);
+    // FIXME добавить более продвинутую обработку ран
+    target_bone_group.1.fractures.push(Fracture::Closed);
+    log.push_str(format!("and {} fracture", target_bone_group.0).as_str());
+    if let Ok(attacker_log) = world.query_one_mut::<&mut Log>(attacker) {
+        dbg!("put to log", &log);
+        attacker_log.0.push_str(log.as_str());
+        attacker_log.0.push('\n');
+    }
+    // world.remove_one::<WantsAttack>(*e)?;
+
     Ok(())
 }

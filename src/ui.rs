@@ -12,7 +12,7 @@ use macroquad::{
 };
 
 use crate::{
-    hasher, items::Item, Direction, GameHasher, InventoryAction, LogAction, PlayerAction,
+    hasher, items::Item, Direction, GameHasher, InventoryAction, LogAction, PlayerWorldAction,
     Statistics, UIAction,
 };
 
@@ -25,7 +25,7 @@ pub type DialogKeys = HashMap<char, UIAction, GameHasher>;
 
 pub struct UIConfig {
     pub dialogs_keys: HashMap<String, DialogKeys, GameHasher>,
-    pub world_keys: HashMap<char, PlayerAction, GameHasher>,
+    pub world_keys: HashMap<char, PlayerWorldAction, GameHasher>,
 }
 
 impl UIConfig {
@@ -34,8 +34,8 @@ impl UIConfig {
         let mut inventory_keys = HashMap::with_hasher(hasher());
         inventory_keys.insert('q', UIAction::InventoryAction(InventoryAction::Close));
         inventory_keys.insert('d', UIAction::InventoryAction(InventoryAction::DropItem));
-        inventory_keys.insert('e', UIAction::InventoryAction(InventoryAction::TakeItem));
-        inventory_keys.insert('u', UIAction::InventoryAction(InventoryAction::ReleaseItem));
+        inventory_keys.insert('e', UIAction::InventoryAction(InventoryAction::Equip));
+        inventory_keys.insert('u', UIAction::InventoryAction(InventoryAction::Dequip));
         inventory_keys.insert('h', UIAction::Move(Direction::Left));
         inventory_keys.insert('j', UIAction::Move(Direction::Back));
         inventory_keys.insert('k', UIAction::Move(Direction::Forward));
@@ -48,17 +48,17 @@ impl UIConfig {
 
         let mut world_keys = HashMap::with_hasher(hasher());
 
-        world_keys.insert('h', PlayerAction::Move(Direction::Left));
-        world_keys.insert('j', PlayerAction::Move(Direction::Back));
-        world_keys.insert('k', PlayerAction::Move(Direction::Forward));
-        world_keys.insert('l', PlayerAction::Move(Direction::Right));
-        world_keys.insert('u', PlayerAction::Move(Direction::Up));
-        world_keys.insert('n', PlayerAction::Move(Direction::Down));
-        world_keys.insert('i', PlayerAction::OpenInventory);
-        world_keys.insert('e', PlayerAction::PickUpItem);
-        world_keys.insert('p', PlayerAction::OpenLog);
-        world_keys.insert('z', PlayerAction::Zoom);
-        world_keys.insert('Z', PlayerAction::Unzoom);
+        world_keys.insert('h', PlayerWorldAction::Move(Direction::Left));
+        world_keys.insert('j', PlayerWorldAction::Move(Direction::Back));
+        world_keys.insert('k', PlayerWorldAction::Move(Direction::Forward));
+        world_keys.insert('l', PlayerWorldAction::Move(Direction::Right));
+        world_keys.insert('u', PlayerWorldAction::Move(Direction::Up));
+        world_keys.insert('n', PlayerWorldAction::Move(Direction::Down));
+        world_keys.insert('i', PlayerWorldAction::OpenInventory);
+        world_keys.insert('e', PlayerWorldAction::PickUpItem);
+        world_keys.insert('p', PlayerWorldAction::OpenLog);
+        world_keys.insert('z', PlayerWorldAction::Zoom);
+        world_keys.insert('Z', PlayerWorldAction::Unzoom);
 
         Self {
             dialogs_keys,

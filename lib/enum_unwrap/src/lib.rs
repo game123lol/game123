@@ -29,13 +29,14 @@ use syn::{Data, DeriveInput, Fields, parse_macro_input};
 ///
 /// fn main() {
 ///     let p = Property::Int(42);
-///     assert_eq!(p.int(), Some(42));
-///     assert_eq!(p.string(), None);
+///     assert_eq!(p.to_int(), Some(42));
+///     assert_eq!(p.to_string(), None);
 ///     
 ///     let p = Property::String("hello".to_string());
-///     assert_eq!(p.string().as_deref(), Some("hello"));
+///     assert_eq!(p.to_string().as_deref(), Some("hello"));
 /// }
 /// ```
+#[allow(clippy::needless_doctest_main)]
 #[proc_macro_derive(UnwrapEnum)]
 pub fn derive_unwrap_enum(input: TokenStream) -> TokenStream {
     // Парсим входной поток токенов в AST

@@ -13,6 +13,10 @@ textures:
     - 1
     - 0
     name: knife
+  - name: bat
+    coords:
+    - 2
+    - 0
 - source_file: tiles.png
   sprite_size:
   - 30

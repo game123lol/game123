@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{hasher, GameHasher};
 
-pub const CHUNK_SIZE: usize = 64;
+pub const CHUNK_SIZE: usize = 32;
 
 /// Структура, содержащая информацию о тайле. Пока что она имеет только
 /// такие параметры, как имя тайла и название спрайтов, которыми нужно

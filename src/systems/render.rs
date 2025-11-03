@@ -13,7 +13,7 @@ use crate::{
     map::{Chunk, Map, WorldMap},
     need_components,
     player::Player,
-    resources::Sprite,
+    resources::assets::Sprite,
     Game, Mob,
 };
 

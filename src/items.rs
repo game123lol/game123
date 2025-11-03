@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Error;
 use serde::Deserialize;
 
 use crate::{
@@ -35,8 +34,6 @@ macro_rules! get_vals {
 // но чё получится в итоге
 
 // pub struct Material {}
-
-// Сейчас будет
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Item {
